@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,7 +35,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-
 .mbadge{display:inline-block;background:var(--gnbg);color:var(--gn);font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;font-family:'DM Mono',monospace;}
 /* Bottom nav */
 .bnav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--sf);border-top:1px solid var(--bd);z-index:20;}
-.bnav-row{display:grid;grid-template-columns:repeat(4,1fr);}
+.bnav-row{display:grid;grid-template-columns:repeat(5,1fr);}
 .bni{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;cursor:pointer;border:none;background:none;color:var(--t3);font-family:'DM Sans',sans-serif;touch-action:manipulation;}
 .bni svg{width:22px;height:22px;}
 .bni span{font-size:10px;font-weight:500;}
@@ -157,6 +158,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-
 .empty{text-align:center;padding:2.5rem 1rem;color:var(--t3);font-size:13px;}
 .legend{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:1rem;font-size:12px;color:var(--t2);}
 .li{display:flex;align-items:center;gap:5px;}
+/* Activity log */
+.alog{display:flex;flex-direction:column;gap:0;}
+.alog-row{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd);align-items:flex-start;}
+.alog-row:last-child{border-bottom:none;}
+.alog-ts{font-size:10px;color:var(--t3);font-family:DM Mono,monospace;min-width:100px;flex-shrink:0;margin-top:2px;}
+.alog-txt{font-size:13px;color:var(--tx);flex:1;}
+.alog-meta{font-size:11px;color:var(--t3);margin-top:2px;}
+.alog-add{display:flex;gap:8px;margin-top:10px;}
+.alog-add input{flex:1;padding:8px 10px;border:1px solid var(--bd2);border-radius:var(--r);font-size:13px;font-family:DM Sans,sans-serif;background:var(--bg);color:var(--tx);outline:none;}
+.alog-add input:focus{border-color:#4caf82;}
+/* Inline amount edit in monthly */
+.amt-edit{font-size:11px;width:70px;padding:4px 6px;border:1px solid var(--gnbg);border-radius:4px;font-family:DM Mono,monospace;text-align:center;background:var(--sf);color:var(--tx);outline:none;-webkit-appearance:none;}
+.amt-edit:focus{border-color:var(--gn);}
+/* Chart */
+.chart-wrap{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);padding:1.1rem;margin-bottom:1.5rem;}
+.chart-bars{display:flex;align-items:flex-end;gap:4px;height:120px;overflow-x:auto;}
+.chart-bar-col{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:32px;}
+.chart-bar{width:28px;border-radius:3px 3px 0 0;transition:height .3s;}
+.chart-lbl{font-size:9px;color:var(--t3);font-family:DM Mono,monospace;white-space:nowrap;}
 /* Settings panel */
 .settings-list{display:flex;flex-direction:column;gap:6px;}
 .set-item{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
@@ -213,6 +233,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-
     </button>
     <button class="bni" id="bn-overdue" onclick="go('overdue')">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5L10 10"/></svg><span>Overdue</span>
+    </button>
+    <button class="bni" id="bn-settings" onclick="go('settings')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.2 3.2l1.4 1.4M11.4 11.4l1.4 1.4M3.2 12.8l1.4-1.4M11.4 4.6l1.4-1.4"/></svg><span>Settings</span>
     </button>
   </div>
 </nav>
@@ -356,7 +379,16 @@ function loadFromSupabase(){
   sbGet('clients', function(err, val){
     if(err){ updateSyncBadge('offline'); return; }
     if(val && Array.isArray(val) && val.length > 0){
-      clients = migrateClients(val);
+      // Don't overwrite if a local save is queued — local data is newer
+      if(SAVE_TIMER || SAVE_PENDING){ updateSyncBadge('ok'); return; }
+      // Preserve any monthAmounts that exist in memory but not yet in DB
+      var incoming = migrateClients(val);
+      incoming.forEach(function(nc){
+        var existing = clients.find(function(oc){ return oc.id === nc.id; });
+        if(existing && existing.monthAmounts) nc.monthAmounts = existing.monthAmounts;
+        if(existing && existing.activityLog) nc.activityLog = existing.activityLog;
+      });
+      clients = incoming;
       nextId = clients.length ? Math.max.apply(null,clients.map(function(c){return c.id;}))+1 : 1;
       try{ localStorage.setItem('bt_v4',JSON.stringify(clients)); }catch(e){}
     }
@@ -394,6 +426,7 @@ function dotState(c,g){
   var v=c.payments[String(g)];
   if(v===true) return 'pd';
   if(v==='inactive') return 'im';
+  if(v==='notdue') return 'nd';
   if(g>CG) return 'ft';
   if(!isBillingMonth(c,g)) return 'nd';
   return 'ov';
@@ -456,6 +489,27 @@ function vDash(){
       +'<div class="oact"><div class="oa">'+gbp(c.mmf)+'</div>'
       +'<button class="btn grn sm" onclick="event.stopPropagation();qPay('+c.id+')">Mark paid</button></div></div>';
   }).join('');
+  // Revenue chart - last 6 months
+  var chartCols=[]; for(var ci=CG-5;ci<=CG;ci++) chartCols.push(ci);
+  var chartMax=0;
+  var chartData=chartCols.map(function(g){
+    var ym=ymOf(g);
+    var paid=clients.filter(function(c){return c.active;}).reduce(function(s,c){
+      return s+(c.payments[String(g)]===true?dispAmt(c,g):0);
+    },0);
+    if(paid>chartMax) chartMax=paid;
+    return {g:g,m:MN[ym.m].slice(0,3),paid:paid,cur:g===CG};
+  });
+  var chartBars=chartData.map(function(d){
+    var pct=chartMax>0?Math.round((d.paid/chartMax)*100):0;
+    return '<div class="chart-bar-col">'
+      +'<div style="font-size:9px;color:'+(d.cur?'var(--gn)':'var(--t3)')+';font-family:DM Mono,monospace;text-align:center">'+gbp(d.paid)+'</div>'
+      +'<div class="chart-bar" style="height:'+Math.max(4,pct)+'%;background:'+(d.cur?'var(--gn)':'var(--gnbg)')+'"></div>'
+      +'<div class="chart-lbl" style="'+(d.cur?'color:var(--gn);font-weight:700':'')+'">'+d.m+'</div>'
+      +'</div>';
+  }).join('');
+  var chart='<div class="chart-wrap"><div class="ct">Revenue collected &mdash; last 6 months</div>'
+    +'<div class="chart-bars">'+chartBars+'</div></div>';
   return '<div class="ph">'
     +'<div><div class="pt">Dashboard</div><div class="ps">Today: '+TD+' '+MN[TM]+' '+TY+'</div></div>'
     +'<div class="pa"><button class="btn sm" onclick="exportCSV()">Export CSV</button></div></div>'
@@ -463,8 +517,9 @@ function vDash(){
     +'<div class="met"><div class="ml">Active clients</div><div class="mv">'+active.length+'</div><div class="ms">'+clients.filter(function(c){return !c.active;}).length+' inactive</div></div>'
     +'<div class="met"><div class="ml">Monthly value</div><div class="mv gn">'+gbp(mrr)+'</div></div>'
     +'<div class="met"><div class="ml">Paid this month</div><div class="mv gn">'+gbp(paidAmt)+'</div></div>'
-    +'<div class="met"><div class="ml">Overdue now</div><div class="mv '+(od.length?'rd':'')+'">'+gbp(odAmt)+'</div><div class="ms">'+od.length+' clients</div></div>'
+    +'<div class="met"><div class="ml">Overdue now</div><div class="mv '+(od.length?'rd':'')+"'"+'>'+gbp(odAmt)+'</div><div class="ms">'+od.length+' clients</div></div>'
     +'</div>'
+    +chart
     +'<div class="sh"><div class="st">Overdue as of '+TD+' '+MN[TM]+'</div>'
     +'<button class="btn sm" onclick="go(\'overdue\')">View all &rarr;</button></div>'
     +(rows||'<div class="empty">No overdue payments today!</div>');
@@ -478,7 +533,9 @@ function vClients(){
     return '<div class="cc '+(c.active?'':'inact')+'" onclick="openC('+c.id+')">'
       +'<div class="ddb">'+c.date+'</div>'
       +'<div><div class="cn">'+esc(c.name)+' '+inact+'</div>'
-      +'<div class="cs">'+esc(c.contact)+' &bull; '+freqBadge(c)+'</div></div>'
+      +'<div class="cs">'+esc(c.contact)+'</div>'
+      +'<div class="cs" style="margin-top:1px">'+freqBadge(c)+(c.email?' &bull; '+esc(c.email):'')+'</div>'
+      +'</div>'
       +'<div class="cf">'+gbp(c.mmf)+'</div>'
       +'<svg style="width:12px;height:12px;color:var(--t3);flex-shrink:0" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3l4 4-4 4"/></svg>'
       +'</div>';
@@ -497,24 +554,29 @@ function vClients(){
 function vDetail(){
   var c=clients.find(function(x){return x.id===SELID;});
   if(!c) return vClients();
-  var paidCount=Object.values(c.payments).filter(function(v){return v===true;}).length;
-  var total=paidCount*parseFloat(c.mmf||0);
+  var total=Object.keys(c.payments).reduce(function(s,gk){
+    return s+(c.payments[gk]===true?dispAmt(c,parseInt(gk)):0);
+  },0);
   var rows='';
-  for(var g=CG-6;g<=CG+6;g++){
+  // Newest first, skip nd/im rows and zero-amount paid rows
+  for(var g=CG;g>=CG-14;g--){
     var ym=ymOf(g);
     var st=dotState(c,g);
     var fut=g>CG, cur=g===CG;
-    var billing=isBillingMonth(c,g);
-    var slbl={pd:'Paid',ov:'Overdue',im:'Not billed',ft:'Future',nd:'Not due'}[st]||'?';
-    var amtTxt=(st==='im'||st==='nd')?'&mdash;':gbp(c.mmf);
-    var amtCol=st==='pd'?'var(--gn)':(st==='im'||st==='nd')?'var(--t3)':'var(--t2)';
+    // Skip not-due and not-billed rows
+    if(st==='nd'||st==='im') continue;
+    // Skip zero-amount paid rows
+    var rowAmt=dispAmt(c,g);
+    if(st==='pd'&&rowAmt===0) continue;
+    var slbl={pd:'Paid',ov:'Overdue',ft:'Future'}[st]||'Awaiting';
+    var amtTxt=gbp(rowAmt);
+    var amtCol=st==='pd'?'var(--gn)':st==='ov'?'var(--rd)':'var(--t2)';
     var btns='';
-    if(!fut&&billing){
+    if(!fut){
       btns='<button class="sbtn '+(st==='pd'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'paid\')">&#10003;</button>'
         +'<button class="sbtn '+(st==='ov'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'overdue\')">!</button>'
-        +'<button class="sbtn '+(st==='im'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'inactive\')">&mdash;</button>';
-    } else {
-      btns='<span style="font-size:11px;color:var(--t3)">'+(fut?'future':'n/a')+'</span>';
+        +'<button class="sbtn '+(st==='im'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'inactive\')">&mdash;</button>'
+        +'<button class="sbtn '+(st==='nd'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'notdue\')">&#9633;</button>';
     }
     var rs=cur?' style="background:#f8fef9;border-radius:6px;padding:8px 6px"':'';
     rows+='<div class="hr"'+rs+'>'
@@ -544,8 +606,11 @@ function vDetail(){
     +'<div class="di"><label>Invoice type</label><span>'+invBadge(c)+'</span></div>'
     +'<div class="di"><label>Status</label><span>'+(c.active?'<span class="bdg brec">Active</span>':'<span class="bdg bin">Inactive</span>')+'</span></div>'
     +'<div class="di"><label>Total billed</label><span style="font-family:DM Mono,monospace">'+gbp(total)+'</span></div>'
+    +'<div class="di"><label>Email</label><span>'+(c.email?'<a href="mailto:'+esc(c.email)+'" style="color:var(--bl)">'+esc(c.email)+'</a>':'&mdash;')+'</span></div>'
+    +'<div class="di"><label>Phone</label><span>'+(c.phone?'<a href="tel:'+esc(c.phone)+'" style="color:var(--bl)">'+esc(c.phone)+'</a>':'&mdash;')+'</span></div>'
     +'</div>'+nbox+'</div>'
-    +'<div class="card"><div class="ct">Payment history &mdash; click buttons to update</div>'+rows+'</div>';
+    +'<div class="card"><div class="ct">Payment history &mdash; click buttons to update</div>'+rows+'</div>'
+    +buildActivityLog(c);
 }
 
 // ── MONTHLY VIEW (TABLE-BASED) ──
@@ -580,7 +645,8 @@ function vMonthly(){
     for(var ri=0;ri<visible.length;ri++){
       var c=visible[ri];
       var st=dotState(c,g);
-      if(st!=='nd'&&st!=='ft'){ tot+=parseFloat(c.mmf||0); if(st==='pd') paid+=parseFloat(c.mmf||0); }
+      var ma=dispAmt(c,g);
+      if(st!=='nd'&&st!=='ft'){ tot+=parseFloat(ma||0); if(st==='pd') paid+=parseFloat(ma||0); }
     }
     colTotals[g]=tot; colPaid[g]=paid;
   }
@@ -592,20 +658,24 @@ function vMonthly(){
     tbody+='<tr>'
       +'<td class="namecol" style="cursor:pointer" onclick="openC('+c.id+')">'
       +'<div style="font-size:12px;font-weight:500;color:var(--tx)">'+esc(c.name)+'</div>'
-      +'<div style="font-size:10px;color:var(--t3)">'+c.date+ord(c.date)+' &bull; '+esc(c.frequency)+'</div>'
+      +'<div style="font-size:10px;color:var(--t3)">'+esc(c.contact)+'</div>'
+      +'<div style="font-size:10px;color:var(--t3);margin-top:1px">'+freqBadge(c)+' &bull; Due '+c.date+ord(c.date)+'</div>'
       +'</td>';
     for(var ci2=0;ci2<cols.length;ci2++){
       var cg=cols[ci2];
       var st=dotState(c,cg);
       var lbl=DLBL[st]||'';
-      var isFut=(st==='ft'||st==='nd');
+      var isFut=(st==='ft');  // only true future months are locked
       var mid='dd'+c.id+'x'+cg;
       var clickStr=isFut?'':' onclick="openDot(event,\''+mid+'\')"';
-      var dotEl='<span class="dot '+st+'" title="'+DTIT[st]+'"'+clickStr+'>'+lbl+'</span>';
+      var dotEl='<span class="dot '+st+'" title="'+(isFut?DTIT[st]:'Click to change')+'"'+clickStr+'>'+lbl+'</span>';
       var amtTxt='';
-      if(st!=='nd'&&st!=='ft'){
-        var amtColor=st==='pd'?'var(--gn)':st==='ov'?'var(--rd)':'var(--t3)';
-        amtTxt='<div style="font-size:9px;font-weight:600;font-family:DM Mono,monospace;color:'+amtColor+';margin-top:2px;line-height:1">'+gbp(c.mmf)+'</div>';
+      if(st!=='ft'&&st!=='nd'){  // only show amount for active billing months
+        var cellAmt=dispAmt(c,cg);
+        if(cellAmt>0){  // only show if amount > 0
+          var amtColor=st==='pd'?'var(--gn)':st==='ov'?'var(--rd)':'var(--t3)';
+          amtTxt='<div style="font-size:9px;font-weight:600;font-family:DM Mono,monospace;color:'+amtColor+';margin-top:2px;line-height:1">'+gbp(cellAmt)+'</div>';
+        }
       }
       var menuEl='';
       if(!isFut){
@@ -613,6 +683,12 @@ function vMonthly(){
           +'<div class="ddi" onclick="setSt('+c.id+','+cg+',\'paid\');closeDots()">&#10003; Paid</div>'
           +'<div class="ddi" onclick="setSt('+c.id+','+cg+',\'overdue\');closeDots()">! Overdue</div>'
           +'<div class="ddi" onclick="setSt('+c.id+','+cg+',\'inactive\');closeDots()">&mdash; Not billed</div>'
+          +'<div class="ddi" onclick="setSt('+c.id+','+cg+',\'notdue\');closeDots()">&#9633; Not due this month</div>'
+          +'<div class="ddi" style="border-top:1px solid var(--bd);margin-top:2px;padding-top:6px" onclick="event.stopPropagation()">'
+          +'<span style="font-size:11px;color:var(--t3);flex-shrink:0">&#163;</span>'
+          +'<input class="amt-edit" type="text" inputmode="decimal" pattern="[0-9.]*" placeholder="'+c.mmf+'" id="ae_'+c.id+'_'+cg+'" value="'+dispAmt(c,cg)+'" onclick="event.stopPropagation()">'
+          +'<button class="btn sm grn" style="padding:2px 6px;font-size:10px" onclick="saveMonthAmt('+c.id+','+cg+')">Set</button>'
+          +'</div>'
           +'</div>';
       }
       tbody+='<td><div class="mdm">'+dotEl+menuEl+'</div>'+amtTxt+'</td>';
@@ -833,6 +909,10 @@ function vModal(){
     +'<div class="fr"><label>Billing start month</label>'
     +'<input type="number" id="f-anchor" value="'+(e?(c.anchorMonth||0):0)+'" min="0" max="11">'
     +'<div class="fh">For non-monthly: 0=Jan 2026, 1=Feb, 2=Mar etc. Sets which months get billed.</div></div>'
+    +'<div class="f2">'
+    +'<div class="fr"><label>Email</label><input type="email" id="f-email" value="'+(e?esc(c.email||''):'')+'" placeholder="jane@example.com"></div>'
+    +'<div class="fr"><label>Phone</label><input type="tel" id="f-phone" value="'+(e?esc(c.phone||''):'')+'" placeholder="07700 900000"></div>'
+    +'</div>'
     +'<div class="fr"><label>Notes</label>'
     +'<textarea id="f-notes" placeholder="e.g. Quarterly billing Jan, Apr, Jul, Oct">'+(e?esc(c.notes||''):'')+'</textarea></div>'
     // Active as separate checkbox+label, not nested
@@ -844,6 +924,69 @@ function vModal(){
     +'<button class="btn" onclick="closeModal()">Cancel</button>'
     +'<button class="btn pri" onclick="saveC()">'+(e?'Save changes':'Add client')+'</button>'
     +'</div></div></div>';
+}
+
+// ── PER-MONTH AMOUNTS ──
+// Stored as c.monthAmounts = {'5': 299.00, '-3': 250.00} keyed by global month index
+function getMonthAmt(c, g){
+  // Returns override if set, else null (not c.mmf — callers must handle null)
+  if(c.monthAmounts && c.monthAmounts[String(g)]!==undefined) return c.monthAmounts[String(g)];
+  return null;
+}
+function dispAmt(c, g){
+  // Safe display amount: override if set, else default fee
+  var ov = getMonthAmt(c, g);
+  return (ov !== null) ? ov : parseFloat(c.mmf||0);
+}
+function saveMonthAmt(cid, g){
+  var inp=document.getElementById('ae_'+cid+'_'+g);
+  if(!inp) return;
+  var raw=inp.value.replace(/[^0-9.]/g,'');  // strip any £ or spaces
+  var val=parseFloat(raw);
+  if(isNaN(val)||val<0){ toast('Please enter a valid amount'); return; }
+  var c=clients.find(function(x){return x.id===cid;});
+  if(!c) return;
+  if(!c.monthAmounts) c.monthAmounts={};
+  c.monthAmounts[String(g)]=val;
+  var ym=ymOf(g);
+  addLog(c,'Amount for '+MN[ym.m]+' '+ym.y+' set to '+gbp(val));
+  // Flush immediately to both localStorage and Supabase (bypass debounce)
+  try{ localStorage.setItem('bt_v4',JSON.stringify(clients)); }catch(e){}
+  if(SAVE_TIMER){ clearTimeout(SAVE_TIMER); SAVE_TIMER=null; }
+  SAVE_PENDING=true;
+  updateSyncBadge('saving');
+  sbSet('clients', clients, function(err){
+    SAVE_PENDING=false;
+    updateSyncBadge(err?'error':'ok');
+  });
+  toast('Amount updated'); closeDots(); render();
+}
+
+// ── ACTIVITY LOG ──
+function addLog(c, text){
+  if(!c.activityLog) c.activityLog=[];
+  c.activityLog.unshift({ts:new Date().toISOString(), text:text});
+  if(c.activityLog.length>50) c.activityLog.length=50; // cap at 50 entries
+}
+function buildActivityLog(c){
+  var log=c.activityLog||[];
+  var addRow='<div class="alog-add">'    +'<input type="text" id="alog-inp-'+c.id+'" placeholder="Add a note...">'    +'<button class="btn sm grn" onclick="addLogEntry('+c.id+')">Add note</button>'    +'</div>';
+  if(!log.length) return '<div class="card"><div class="ct">Activity log</div>'+addRow+'<div class="empty" style="padding:1rem 0">No activity recorded yet</div></div>';
+  var rows=log.slice(0,20).map(function(e){
+    var d=new Date(e.ts);
+    var ds=d.getDate()+'/'+(d.getMonth()+1)+'/'+String(d.getFullYear()).slice(2)+' '      +d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+    return '<div class="alog-row"><div class="alog-ts">'+ds+'</div><div class="alog-txt">'+esc(e.text)+'</div></div>';
+  }).join('');
+  return '<div class="card"><div class="ct">Activity log</div>'+addRow+'<div class="alog">'+rows+'</div></div>';
+}
+function addLogEntry(cid){
+  var inp=document.getElementById('alog-inp-'+cid);
+  var txt=(inp&&inp.value||'').trim();
+  if(!txt) return;
+  var c=clients.find(function(x){return x.id===cid;});
+  if(!c) return;
+  addLog(c, txt);
+  save(); toast('Note added'); render();
 }
 
 // ── ACTIONS ──
@@ -870,18 +1013,23 @@ function saveC(){
   var invType=document.getElementById('f-invType').value;
   var frequency=document.getElementById('f-frequency').value;
   var anchorMonth=parseInt(document.getElementById('f-anchor').value)||0;
+  var email=(document.getElementById('f-email').value||'').trim();
+  var phone=(document.getElementById('f-phone').value||'').trim();
   var notes=(document.getElementById('f-notes').value||'').trim();
   var active=document.getElementById('f-active').checked;
   if(!name){document.getElementById('f-name').focus();return;}
   if(EDITC){
     var i=clients.findIndex(function(c){return c.id===EDITC.id;});
     clients[i]=Object.assign({},clients[i],{name:name,contact:contact,date:date,invoiceDay:invoiceDay,
-      mmf:mmf,payType:payType,invType:invType,frequency:frequency,anchorMonth:anchorMonth,notes:notes,active:active});
+      mmf:mmf,payType:payType,invType:invType,frequency:frequency,anchorMonth:anchorMonth,notes:notes,active:active,email:email,phone:phone});
+    addLog(clients[i],'Client details updated');
     toast('Client updated');
   } else {
-    clients.push({id:nextId++,date:date,invoiceDay:invoiceDay,name:name,contact:contact,
+    var nc={id:nextId++,date:date,invoiceDay:invoiceDay,name:name,contact:contact,
       payType:payType,invType:invType,frequency:frequency,anchorMonth:anchorMonth,
-      mmf:mmf,notes:notes,active:active,payments:{}});
+      mmf:mmf,notes:notes,active:active,email:email,phone:phone,payments:{},activityLog:[]};
+    addLog(nc,'Client created');
+    clients.push(nc);
     toast('Client added');
   }
   save(); MODAL=false;
@@ -898,11 +1046,17 @@ function delC(id){
 function setSt(cid,g,st){
   var c=clients.find(function(x){return x.id===cid;});
   if(!c) return;
+  var prev=c.payments[String(g)];
   if(st==='paid') c.payments[String(g)]=true;
   else if(st==='inactive') c.payments[String(g)]='inactive';
+  else if(st==='notdue') c.payments[String(g)]='notdue';
   else c.payments[String(g)]=false;
+  // Log the change
+  var ym=ymOf(g);
+  var lbl={paid:'Marked paid',overdue:'Marked overdue',inactive:'Marked not billed',notdue:'Marked not due'}[st]||'Updated';
+  addLog(c, lbl+' for '+MN[ym.m]+' '+ym.y);
   save();
-  toast({paid:'Marked paid',overdue:'Marked overdue',inactive:'Marked not billed'}[st]||'Updated');
+  toast(lbl);
   render();
 }
 function qPay(id){ setSt(id,CG,'paid'); }
