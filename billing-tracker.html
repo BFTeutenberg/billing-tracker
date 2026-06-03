@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Billing Tracker</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
+:root{
+  --bg:#f5f4f0;--sf:#fff;--sf2:#f0efe9;--bd:#e2e0d8;--bd2:#ccc9bf;
+  --tx:#1a1916;--t2:#6b6860;--t3:#a09d96;
+  --gn:#1a6b4a;--gnbg:#e6f4ed;
+  --am:#7a5500;--ambg:#fef3d8;
+  --rd:#8b1e1e;--rdbg:#fdeaea;
+  --bl:#1a4a7a;--blbg:#e6eef8;
+  --gy:#4a4842;--gybg:#ebebeb;
+  --in:#9b8ea0;--inbg:#f0ebf4;
+  --r:8px;--rl:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-size:14px;}
+/* Layout */
+.sb{width:220px;background:var(--sf);border-right:1px solid var(--bd);padding:1.5rem 0;position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;z-index:20;}
+.sb-logo{padding:0 1.25rem 1.25rem;border-bottom:1px solid var(--bd);margin-bottom:1rem;}
+.sb-title{font-size:15px;font-weight:600;letter-spacing:-.02em;}
+.sb-sub{font-size:11px;color:var(--t3);margin-top:2px;font-family:'DM Mono',monospace;}
+.nav-desk{flex:1;padding:0 .75rem;}
+.ni{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r);cursor:pointer;color:var(--t2);font-size:13px;font-weight:400;transition:all .12s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left;font-family:'DM Sans',sans-serif;}
+.ni:hover{background:var(--sf2);color:var(--tx);}
+.ni.on{background:var(--tx);color:#fff;font-weight:500;}
+.ni svg{width:16px;height:16px;flex-shrink:0;}
+.sb-ft{padding:1rem 1.25rem 0;border-top:1px solid var(--bd);}
+.sb-ft .pl{font-size:11px;color:var(--t3);margin-bottom:5px;}
+.mbadge{display:inline-block;background:var(--gnbg);color:var(--gn);font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;font-family:'DM Mono',monospace;}
+/* Bottom nav */
+.bnav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--sf);border-top:1px solid var(--bd);z-index:20;}
+.bnav-row{display:grid;grid-template-columns:repeat(4,1fr);}
+.bni{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;cursor:pointer;border:none;background:none;color:var(--t3);font-family:'DM Sans',sans-serif;touch-action:manipulation;}
+.bni svg{width:22px;height:22px;}
+.bni span{font-size:10px;font-weight:500;}
+.bni.on{color:var(--gn);}
+/* Main */
+.main{margin-left:220px;padding:2rem;min-height:100vh;}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px;}
+.pt{font-size:22px;font-weight:600;letter-spacing:-.03em;}
+.ps{font-size:13px;color:var(--t2);margin-top:2px;}
+.pa{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+/* Metrics */
+.mets{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1.5rem;}
+.met{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);padding:.9rem 1.1rem;}
+.ml{font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;font-weight:500;}
+.mv{font-size:24px;font-weight:600;letter-spacing:-.03em;font-family:'DM Mono',monospace;}
+.mv.gn{color:var(--gn);} .mv.am{color:var(--am);} .mv.rd{color:var(--rd);}
+.ms{font-size:11px;color:var(--t3);margin-top:3px;}
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r);border:1px solid var(--bd2);background:var(--sf);color:var(--tx);font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .12s;white-space:nowrap;touch-action:manipulation;}
+.btn:hover,.btn:active{background:var(--sf2);}
+.btn.pri{background:var(--tx);color:#fff;border-color:var(--tx);}
+.btn.pri:hover,.btn.pri:active{background:#333;}
+.btn.grn{background:var(--gn);color:#fff;border-color:var(--gn);}
+.btn.grn:hover,.btn.grn:active{background:#145a3d;}
+.btn.sm{padding:5px 10px;font-size:12px;}
+.btn.dng{color:var(--rd);border-color:#e8b4b4;}
+.btn.dng:hover{background:var(--rdbg);}
+.btn svg{width:14px;height:14px;}
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px;}
+.st{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--t3);}
+/* Client list */
+.clist{display:flex;flex-direction:column;gap:4px;}
+.cc{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:11px 14px;display:grid;grid-template-columns:28px 1fr auto auto;align-items:center;gap:10px;cursor:pointer;transition:border-color .12s;touch-action:manipulation;}
+.cc:hover,.cc:active{border-color:var(--bd2);}
+.cc.inact{opacity:.5;}
+.ddb{font-size:11px;font-weight:700;color:var(--t3);font-family:'DM Mono',monospace;text-align:center;background:var(--sf2);border-radius:4px;padding:2px 4px;}
+.cn{font-size:13px;font-weight:500;}
+.cs{font-size:11px;color:var(--t3);margin-top:2px;}
+.cf{font-size:14px;font-weight:600;font-family:'DM Mono',monospace;text-align:right;}
+/* Badges */
+.bdg{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap;}
+.bgc{background:var(--gnbg);color:var(--gn);}
+.bbt{background:var(--ambg);color:var(--am);}
+.bcc{background:var(--blbg);color:var(--bl);}
+.bch{background:var(--gybg);color:var(--gy);}
+.bca{background:#fff3e0;color:#7a4400;}
+.bot{background:var(--inbg);color:var(--in);}
+.bin{background:var(--gybg);color:var(--gy);}
+.brec{background:var(--gnbg);color:var(--gn);}
+.bman{background:var(--ambg);color:var(--am);}
+.fbdg{font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:var(--sf2);color:var(--t2);}
+/* Dots */
+.dot{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;font-weight:700;font-family:'DM Mono',monospace;transition:transform .1s;touch-action:manipulation;}
+.dot:hover{transform:scale(1.15);}
+.dot.pd{background:var(--gnbg);color:var(--gn);border:1px solid #b3ddc8;}
+.dot.ov{background:var(--rdbg);color:var(--rd);border:1px solid #f0b0b0;}
+.dot.im{background:var(--inbg);color:var(--in);border:1px solid #d8cedf;}
+.dot.ft,.dot.nd{background:var(--sf2);color:var(--bd2);border:1px dashed var(--bd);cursor:default;}
+.dot.ft:hover,.dot.nd:hover{transform:none;}
+/* Monthly grid - TABLE based for reliable rendering */
+.mgwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--bd);border-radius:var(--rl);}
+.mgtable{border-collapse:collapse;background:var(--sf);}
+.mgtable th{background:var(--sf2);padding:6px 3px;border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);font-size:9px;font-weight:700;text-transform:uppercase;color:var(--t3);text-align:center;white-space:nowrap;position:sticky;top:0;z-index:5;}
+.mgtable th.cur{background:#eef6f2;color:var(--tx);}
+.mgtable th.namecol{text-align:left;padding:6px 10px;min-width:150px;position:sticky;left:0;z-index:6;}
+.mgtable td{padding:4px 3px;border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);text-align:center;vertical-align:middle;min-width:44px;}
+.mgtable td.namecol{text-align:left;padding:7px 10px;position:sticky;left:0;background:var(--sf);z-index:4;}
+.mgtable tr:last-child td{border-bottom:none;}
+.mgtable tfoot td{border-top:2px solid var(--bd2);}
+/* Detail */
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;}
+.di label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--t3);font-weight:600;display:block;margin-bottom:3px;}
+.di span{font-size:13px;font-weight:500;}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);padding:1.1rem;margin-bottom:1rem;}
+.ct{font-size:12px;font-weight:600;color:var(--t2);margin-bottom:.9rem;text-transform:uppercase;letter-spacing:.05em;}
+.hr{display:grid;grid-template-columns:72px 1fr auto auto;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);}
+.hr:last-child{border-bottom:none;}
+.hm{font-size:12px;font-weight:600;color:var(--t2);font-family:'DM Mono',monospace;}
+.hs{font-size:12px;color:var(--t3);}
+.ha{font-size:13px;font-weight:600;font-family:'DM Mono',monospace;}
+.sd{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle;}
+.sbtn{padding:4px 8px;font-size:11px;border-radius:20px;border:1px solid var(--bd);background:var(--sf2);color:var(--t2);cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;touch-action:manipulation;}
+.sbtn.on{border-color:var(--bd2);background:var(--tx);color:#fff;}
+/* Overdue cards */
+.oc{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:4px;}
+.on2{font-size:14px;font-weight:600;}
+.om{font-size:12px;color:var(--t3);margin-top:2px;}
+.oa{font-size:17px;font-weight:700;font-family:'DM Mono',monospace;color:var(--rd);}
+.oact{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center;flex-shrink:0;}
+/* Dot dropdown */
+.mdm{position:relative;display:inline-block;}
+.dd{position:absolute;top:110%;left:50%;transform:translateX(-50%);background:var(--sf);border:1px solid var(--bd2);border-radius:var(--r);padding:4px;z-index:50;min-width:120px;box-shadow:0 4px 16px rgba(0,0,0,.12);display:none;}
+.dd.open{display:block;}
+.ddi{display:flex;align-items:center;gap:7px;padding:8px 10px;font-size:13px;cursor:pointer;border-radius:4px;white-space:nowrap;color:var(--tx);touch-action:manipulation;}
+.ddi:hover,.ddi:active{background:var(--sf2);}
+/* Modal */
+.mbg{position:fixed;inset:0;background:rgba(20,18,15,.45);display:flex;align-items:flex-end;justify-content:center;z-index:1000;}
+.modal{background:var(--sf);border-radius:var(--rl) var(--rl) 0 0;border-top:1px solid var(--bd);padding:1.5rem;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;}
+.mtit{font-size:16px;font-weight:600;margin-bottom:1.1rem;letter-spacing:-.02em;}
+.fr{margin-bottom:11px;}
+.fr label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--t3);margin-bottom:4px;}
+.fr input,.fr select,.fr textarea{width:100%;padding:9px 10px;border:1px solid var(--bd2);border-radius:var(--r);font-size:14px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);outline:none;-webkit-appearance:none;}
+.fr input:focus,.fr select:focus,.fr textarea:focus{border-color:#4caf82;}
+.fr textarea{min-height:60px;resize:vertical;}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.fh{font-size:11px;color:var(--t3);margin-top:3px;}
+.fac{display:flex;gap:8px;justify-content:flex-end;margin-top:1.1rem;padding-top:1rem;border-top:1px solid var(--bd);}
+/* Toast */
+.toast{position:fixed;bottom:80px;right:1rem;background:var(--tx);color:#fff;padding:10px 16px;border-radius:var(--r);font-size:13px;font-weight:500;z-index:3000;opacity:0;transition:opacity .2s;pointer-events:none;}
+.toast.show{opacity:1;}
+/* Banners */
+.nbox{background:var(--ambg);border:1px solid #e8d090;border-radius:var(--r);padding:9px 11px;font-size:12px;color:var(--am);margin-top:8px;display:flex;gap:7px;align-items:flex-start;}
+.ibanner{background:var(--inbg);border:1px solid #d8cedf;border-radius:var(--r);padding:8px 12px;font-size:12px;color:var(--in);margin-bottom:.75rem;display:flex;align-items:center;gap:6px;}
+.tbanner{background:var(--rdbg);border:1px solid #e8b4b4;border-radius:var(--r);padding:8px 14px;font-size:12px;color:var(--rd);margin-bottom:1rem;display:flex;align-items:flex-start;gap:8px;}
+.si{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);cursor:pointer;user-select:none;}
+.si input[type=checkbox]{width:auto;}
+.bb{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--t2);cursor:pointer;margin-bottom:1rem;background:none;border:none;font-family:'DM Sans',sans-serif;padding:0;}
+.bb:hover{color:var(--tx);}
+.empty{text-align:center;padding:2.5rem 1rem;color:var(--t3);font-size:13px;}
+.legend{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:1rem;font-size:12px;color:var(--t2);}
+.li{display:flex;align-items:center;gap:5px;}
+/* Settings panel */
+.settings-list{display:flex;flex-direction:column;gap:6px;}
+.set-item{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.set-item-label{font-size:13px;font-weight:500;}
+/* Responsive */
+@media(max-width:700px){
+  .sb{display:none;} .bnav{display:block;} .main{margin-left:0;padding:1rem;padding-bottom:80px;}
+  .f3{grid-template-columns:1fr 1fr;} .dgrid{grid-template-columns:1fr 1fr;}
+  .hr{grid-template-columns:60px 1fr auto;} .ha{display:none;}
+  .mets{grid-template-columns:1fr 1fr;} .mv{font-size:20px;}
+  .oc{flex-wrap:wrap;} .toast{bottom:72px;}
+  .pt{font-size:18px;}
+}
+@media(min-width:701px){
+  .mbg{align-items:center;padding:1rem;} .modal{border-radius:var(--rl);max-width:520px;}
+}
+</style>
+</head>
+<body>
+<div style="display:flex;min-height:100vh;">
+  <nav class="sb">
+    <div class="sb-logo"><div class="sb-title">Billing Tracker</div><div class="sb-sub" id="sbsub">2026</div></div>
+    <div class="nav-desk">
+      <button class="ni on" id="nav-dashboard" onclick="go('dashboard')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>Dashboard
+      </button>
+      <button class="ni" id="nav-clients" onclick="go('clients')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 13c0-3 2.5-5 6-5s6 2 6 5"/></svg>Clients
+      </button>
+      <button class="ni" id="nav-monthly" onclick="go('monthly')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="11" rx="1.5"/><path d="M5 1v4M11 1v4M1 7h14"/></svg>Monthly view
+      </button>
+      <button class="ni" id="nav-overdue" onclick="go('overdue')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5L10 10"/></svg>Overdue
+      </button>
+      <button class="ni" id="nav-settings" onclick="go('settings')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.2 3.2l1.4 1.4M11.4 11.4l1.4 1.4M3.2 12.8l1.4-1.4M11.4 4.6l1.4-1.4"/></svg>Settings
+      </button>
+    </div>
+    <div class="sb-ft"><div class="pl">Current period</div><span class="mbadge" id="pbadge"></span><div style="margin-top:8px;font-size:11px" id="sync-badge" style="color:var(--t3)">Connecting...</div></div>
+  </nav>
+  <main class="main" id="main"></main>
+</div>
+<nav class="bnav">
+  <div class="bnav-row">
+    <button class="bni on" id="bn-dashboard" onclick="go('dashboard')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg><span>Home</span>
+    </button>
+    <button class="bni" id="bn-clients" onclick="go('clients')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 13c0-3 2.5-5 6-5s6 2 6 5"/></svg><span>Clients</span>
+    </button>
+    <button class="bni" id="bn-monthly" onclick="go('monthly')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="11" rx="1.5"/><path d="M5 1v4M11 1v4M1 7h14"/></svg><span>Monthly</span>
+    </button>
+    <button class="bni" id="bn-overdue" onclick="go('overdue')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5L10 10"/></svg><span>Overdue</span>
+    </button>
+  </div>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+var TODAY = new Date();
+var TY = TODAY.getFullYear(), TM = TODAY.getMonth(), TD = TODAY.getDate();
+var MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var SY = 2026;
+function gm(y,m){ return (y-SY)*12+m; }
+function ymOf(g){ var m=((g%12)+12)%12; var y=SY+Math.floor(g/12); return {y:y,m:m}; }
+var CG = gm(TY,TM);
+
+// ── SUPABASE CONFIG ──
+var SB_URL = 'https://bzgallwouruesyaymynm.supabase.co';
+var SB_KEY = 'sb_publishable_WotOgelJf1YXwfMAA518bQ_o-m7pe7-';
+var SB_HEADERS = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY};
+
+function sbGet(key, cb){
+  fetch(SB_URL+'/rest/v1/billing_data?key=eq.'+key+'&select=value', {headers:SB_HEADERS})
+    .then(function(r){return r.json();})
+    .then(function(rows){
+      if(rows && rows[0] && rows[0].value) cb(null, rows[0].value);
+      else cb(null, null);
+    })
+    .catch(function(e){ cb(e, null); });
+}
+
+function sbSet(key, value, cb){
+  // Upsert
+  fetch(SB_URL+'/rest/v1/billing_data', {
+    method:'POST',
+    headers:Object.assign({}, SB_HEADERS, {'Prefer':'resolution=merge-duplicates'}),
+    body:JSON.stringify({key:key, value:value, updated_at:new Date().toISOString()})
+  })
+  .then(function(r){ if(cb) cb(r.ok ? null : new Error('HTTP '+r.status)); })
+  .catch(function(e){ if(cb) cb(e); });
+}
+
+// ── CONFIGURABLE OPTIONS (editable in Settings) ──
+var DEFAULT_OPTS = {
+  payTypes: ['GoCardless','Bank Transfer','Credit Card','Cheque','Cash','Standing Order','Direct Debit','PayPal','Other'],
+  invTypes: ['Recurring','Manual','Auto','Pro Forma','Credit Note'],
+  freqTypes: ['Monthly','Two Monthly','Three Monthly','Six Monthly','Annual','One Off','Weekly','Fortnightly']
+};
+var OPTS = JSON.parse(localStorage.getItem('bt_opts')||'null') || JSON.parse(JSON.stringify(DEFAULT_OPTS));
+var FREQMO = {Monthly:1,'Two Monthly':2,'Three Monthly':3,'Six Monthly':6,Annual:12,'One Off':0,Weekly:0,Fortnightly:0};
+
+function saveOpts(){
+  try{ localStorage.setItem('bt_opts',JSON.stringify(OPTS)); }catch(e){}
+  sbSet('opts', OPTS);
+}
+
+function isBillingMonth(c,g){
+  var freq = c.frequency||'Monthly';
+  var f = FREQMO[freq];
+  if(f===undefined) f=1;
+  if(f===0) return false; // One Off / Weekly etc - managed manually
+  if(f===1) return true;
+  var anchor = c.anchorMonth||0;
+  return (g - anchor) % f === 0;
+}
+function isDueThisMonth(c){ return isBillingMonth(c,CG); }
+function isOverdueToday(c){
+  if(!c.active) return false;
+  if(!isDueThisMonth(c)) return false;
+  var v = c.payments[String(CG)];
+  if(v===true||v==='inactive') return false;
+  return TD >= (c.date||1);
+}
+
+// ── DEFAULT CLIENT DATA ──
+var DEF = [
+  {id:1,date:1,invoiceDay:25,name:'The Avalon Rooms',contact:'Felicity Denham',payType:'GoCardless',invType:'Recurring',frequency:'Monthly',mmf:235,notes:'',active:true,anchorMonth:0,payments:{'0':true,'1':true,'2':true,'3':true,'4':true,'5':true}},
+  {id:2,date:1,invoiceDay:25,name:'Fibreglass First',contact:'Mike Merrall',payType:'Bank Transfer',invType:'Manual',frequency:'Monthly',mmf:300,notes:'',active:true,anchorMonth:0,payments:{'1':true,'2':true,'3':true,'4':false}},
+  {id:3,date:1,invoiceDay:25,name:'Wooden Spoon Society',contact:'Sarah Coleman',payType:'Bank Transfer',invType:'Manual',frequency:'Three Monthly',mmf:199,notes:'Quarterly billing - Jan, Apr, Jul, Oct',active:true,anchorMonth:0,payments:{'0':true,'3':true}},
+  {id:4,date:2,invoiceDay:26,name:'HISC East Hampshire',contact:'Mike Colvin',payType:'Bank Transfer',invType:'Recurring',frequency:'Monthly',mmf:299,notes:'',active:true,anchorMonth:0,payments:{'0':true,'1':true,'2':true,'3':true,'4':true,'5':true}},
+  {id:5,date:2,invoiceDay:26,name:'Discount Sewing',contact:'Ollie Chapman',payType:'Bank Transfer',invType:'Manual',frequency:'Monthly',mmf:450,notes:'One-off project invoice',active:true,anchorMonth:0,payments:{'0':true}},
+  {id:6,date:15,invoiceDay:1,name:'A&L Decorators Oxford Ltd',contact:'Louis Masters',payType:'GoCardless',invType:'Recurring',frequency:'Monthly',mmf:199,notes:'',active:true,anchorMonth:0,payments:{'1':true,'2':true,'3':true,'4':true}},
+  {id:7,date:19,invoiceDay:5,name:'Fibreglass First (3mo)',contact:'Mike Merrall',payType:'Bank Transfer',invType:'Manual',frequency:'Three Monthly',mmf:297,notes:'3-monthly billing cycle',active:true,anchorMonth:0,payments:{'0':true,'3':false}},
+  {id:8,date:21,invoiceDay:7,name:'Commercial Tarmacadam',contact:'Lee Swift',payType:'GoCardless',invType:'Recurring',frequency:'Monthly',mmf:199,notes:'',active:true,anchorMonth:0,payments:{'1':true,'2':true,'3':true,'4':true}},
+  {id:9,date:21,invoiceDay:7,name:'HISC Aylesbury Vale',contact:'Lee Harrington',payType:'GoCardless',invType:'Recurring',frequency:'Monthly',mmf:235,notes:'',active:true,anchorMonth:0,payments:{'1':true,'2':true,'3':true,'4':true}},
+  {id:10,date:24,invoiceDay:10,name:'Oxford Orthotics',contact:'Andrew Dodds',payType:'Bank Transfer',invType:'Manual',frequency:'Three Monthly',mmf:299,notes:'3-month contract started Feb',active:true,anchorMonth:1,payments:{'1':true,'4':false}},
+  {id:11,date:24,invoiceDay:10,name:'Oxford Eco Centre',contact:'Claire Crawford',payType:'GoCardless',invType:'Recurring',frequency:'Monthly',mmf:99,notes:'',active:true,anchorMonth:0,payments:{'1':true,'2':true,'3':true,'4':true}},
+  {id:12,date:26,invoiceDay:12,name:'Storme',contact:'Storme Webster',payType:'Bank Transfer',invType:'Manual',frequency:'Three Monthly',mmf:125,notes:'Quarterly. Next invoice due 30/06/26',active:true,anchorMonth:2,payments:{'2':true,'5':false}},
+  {id:13,date:26,invoiceDay:12,name:'Discount Sewing 2',contact:'Ollie Chapman',payType:'Bank Transfer',invType:'Manual',frequency:'Monthly',mmf:97,notes:'Ad-hoc invoice',active:true,anchorMonth:0,payments:{}},
+  {id:14,date:27,invoiceDay:13,name:'DND Ltd',contact:'David Nimmo',payType:'GoCardless',invType:'Recurring',frequency:'Monthly',mmf:299,notes:'',active:true,anchorMonth:0,payments:{'1':true,'2':true,'3':true,'4':true}}
+];
+
+// Start with localStorage cache for instant load, then sync from Supabase
+var clients = JSON.parse(localStorage.getItem('bt_v4')||'null') || DEF;
+function migrateClients(arr){
+  arr.forEach(function(c){
+    if(!c.payType) c.payType = (c.payment||'').toLowerCase().indexOf('gocardless')>=0 ? 'GoCardless' : 'Bank Transfer';
+    if(!c.invType) c.invType = 'Manual';
+    if(!c.frequency) c.frequency = 'Monthly';
+    if(c.anchorMonth===undefined) c.anchorMonth = 0;
+    if(!c.invoiceDay) c.invoiceDay = c.date;
+    if(c.active===undefined) c.active = true;
+  });
+  return arr;
+}
+clients = migrateClients(clients);
+var nextId = clients.length ? Math.max.apply(null,clients.map(function(c){return c.id;}))+1 : 1;
+
+var SAVE_PENDING = false;
+var SAVE_TIMER = null;
+function save(){
+  // Write to localStorage immediately (instant, offline-safe)
+  try{ localStorage.setItem('bt_v4',JSON.stringify(clients)); }catch(e){}
+  // Debounce Supabase writes — batch rapid changes into one write after 800ms
+  if(SAVE_TIMER) clearTimeout(SAVE_TIMER);
+  SAVE_TIMER = setTimeout(function(){
+    SAVE_PENDING = true;
+    updateSyncBadge('saving');
+    sbSet('clients', clients, function(err){
+      SAVE_PENDING = false;
+      if(err){ updateSyncBadge('error'); }
+      else { updateSyncBadge('ok'); }
+    });
+  }, 800);
+}
+
+function updateSyncBadge(state){
+  var el = document.getElementById('sync-badge');
+  if(!el) return;
+  if(state==='saving'){ el.textContent='Syncing...'; el.style.color='var(--am)'; }
+  else if(state==='ok'){
+    var now=new Date();
+    el.textContent='Synced '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+    el.style.color='var(--gn)';
+  }
+  else if(state==='error'){ el.textContent='Sync error'; el.style.color='var(--rd)'; }
+  else if(state==='offline'){ el.textContent='Offline'; el.style.color='var(--t3)'; }
+}
+
+// Load fresh data from Supabase on startup (runs after initial render from cache)
+function loadFromSupabase(){
+  updateSyncBadge('saving');
+  sbGet('clients', function(err, val){
+    if(err){ updateSyncBadge('offline'); return; }
+    if(val && Array.isArray(val) && val.length > 0){
+      clients = migrateClients(val);
+      nextId = clients.length ? Math.max.apply(null,clients.map(function(c){return c.id;}))+1 : 1;
+      try{ localStorage.setItem('bt_v4',JSON.stringify(clients)); }catch(e){}
+    }
+    updateSyncBadge('ok');
+    render();
+  });
+  sbGet('opts', function(err, val){
+    if(!err && val){ OPTS = val; try{ localStorage.setItem('bt_opts',JSON.stringify(OPTS)); }catch(e){} }
+  });
+}
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},2000);
+}
+function gbp(n){ return '\u00a3'+parseFloat(n||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function esc(s){ if(!s)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function ord(n){ n=parseInt(n); if(!n)return''; var s=['th','st','nd','rd'],v=n%100; return s[(v-20)%10]||s[v]||s[0]; }
+function sortC(list){ return list.slice().sort(function(a,b){return (a.date||1)-(b.date||1);}); }
+
+var PAY_COLORS = {'GoCardless':'bgc','Bank Transfer':'bbt','Credit Card':'bcc','Cheque':'bch','Cash':'bca','Standing Order':'bbt','Direct Debit':'bgc','PayPal':'bcc','Other':'bot'};
+function payBadge(c){
+  var cls = PAY_COLORS[c.payType] || 'bot';
+  return '<span class="bdg '+cls+'">'+esc(c.payType||'?')+'</span>';
+}
+function invBadge(c){ return c.invType==='Recurring'?'<span class="bdg brec">Recurring</span>':'<span class="bdg bman">'+esc(c.invType||'Manual')+'</span>'; }
+function freqBadge(c){ return '<span class="fbdg">'+esc(c.frequency||'Monthly')+'</span>'; }
+
+var DOTST = {pd:'pd',ov:'ov',im:'im',ft:'ft',nd:'nd'};
+var DLBL = {pd:'&#10003;',ov:'!',im:'&mdash;',ft:'',nd:''};
+var DTIT = {pd:'Paid',ov:'Overdue',im:'Not billed',ft:'Future',nd:'Not due'};
+var DCOL = {pd:'var(--gn)',ov:'var(--rd)',im:'var(--in)',ft:'var(--bd)',nd:'var(--bd)'};
+
+function dotState(c,g){
+  var v=c.payments[String(g)];
+  if(v===true) return 'pd';
+  if(v==='inactive') return 'im';
+  if(g>CG) return 'ft';
+  if(!isBillingMonth(c,g)) return 'nd';
+  return 'ov';
+}
+
+var VIEW='dashboard', SELID=null, MODAL=false, EDITC=null, SHOWINACT=false;
+var VIEWS = ['dashboard','clients','monthly','overdue','settings'];
+
+function go(v){
+  VIEW=v; MODAL=false;
+  VIEWS.forEach(function(n){
+    var a=document.getElementById('nav-'+n);
+    var b=document.getElementById('bn-'+n);
+    if(a) a.classList.remove('on');
+    if(b) b.classList.remove('on');
+  });
+  var na=document.getElementById('nav-'+v);
+  var nb=document.getElementById('bn-'+v);
+  if(na) na.classList.add('on');
+  if(nb) nb.classList.add('on');
+  render();
+}
+
+function render(){
+  var main=document.getElementById('main');
+  if(!main) return;
+  document.getElementById('pbadge').textContent=MN[TM]+' '+TY;
+  document.getElementById('sbsub').textContent=TY+' Management';
+  var html='';
+  try {
+    if(VIEW==='dashboard') html=vDash();
+    else if(VIEW==='clients') html=vClients();
+    else if(VIEW==='client_detail') html=vDetail();
+    else if(VIEW==='monthly') html=vMonthly();
+    else if(VIEW==='overdue') html=vOverdue();
+    else if(VIEW==='settings') html=vSettings();
+  } catch(err) {
+    html='<div style="padding:2rem;color:var(--rd)">Error: '+err.message+'</div>';
+  }
+  main.innerHTML=html;
+  if(MODAL){
+    try{ main.insertAdjacentHTML('beforeend',vModal()); }catch(e){}
+  }
+  bindModal();
+  if(VIEW==='monthly') setTimeout(scrollToToday,80);
+}
+
+// ── DASHBOARD ──
+function vDash(){
+  var active=clients.filter(function(c){return c.active;});
+  var mrr=active.reduce(function(s,c){return s+parseFloat(c.mmf||0);},0);
+  var pg=String(CG);
+  var paidAmt=active.filter(function(c){return c.payments[pg]===true;}).reduce(function(s,c){return s+parseFloat(c.mmf||0);},0);
+  var od=sortC(active.filter(isOverdueToday));
+  var odAmt=od.reduce(function(s,c){return s+parseFloat(c.mmf||0);},0);
+  var rows=od.slice(0,6).map(function(c){
+    return '<div class="oc" style="cursor:pointer" onclick="openC('+c.id+')">'
+      +'<div style="flex:1"><div class="on2">'+esc(c.name)+'</div>'
+      +'<div class="om">'+esc(c.contact)+' &bull; Due '+c.date+ord(c.date)+' &bull; '+payBadge(c)+'</div></div>'
+      +'<div class="oact"><div class="oa">'+gbp(c.mmf)+'</div>'
+      +'<button class="btn grn sm" onclick="event.stopPropagation();qPay('+c.id+')">Mark paid</button></div></div>';
+  }).join('');
+  return '<div class="ph">'
+    +'<div><div class="pt">Dashboard</div><div class="ps">Today: '+TD+' '+MN[TM]+' '+TY+'</div></div>'
+    +'<div class="pa"><button class="btn sm" onclick="exportCSV()">Export CSV</button></div></div>'
+    +'<div class="mets">'
+    +'<div class="met"><div class="ml">Active clients</div><div class="mv">'+active.length+'</div><div class="ms">'+clients.filter(function(c){return !c.active;}).length+' inactive</div></div>'
+    +'<div class="met"><div class="ml">Monthly value</div><div class="mv gn">'+gbp(mrr)+'</div></div>'
+    +'<div class="met"><div class="ml">Paid this month</div><div class="mv gn">'+gbp(paidAmt)+'</div></div>'
+    +'<div class="met"><div class="ml">Overdue now</div><div class="mv '+(od.length?'rd':'')+'">'+gbp(odAmt)+'</div><div class="ms">'+od.length+' clients</div></div>'
+    +'</div>'
+    +'<div class="sh"><div class="st">Overdue as of '+TD+' '+MN[TM]+'</div>'
+    +'<button class="btn sm" onclick="go(\'overdue\')">View all &rarr;</button></div>'
+    +(rows||'<div class="empty">No overdue payments today!</div>');
+}
+
+// ── CLIENTS ──
+function vClients(){
+  var list=sortC(SHOWINACT?clients:clients.filter(function(c){return c.active;}));
+  var rows=list.map(function(c){
+    var inact=c.active?'':'<span class="bdg bin">Inactive</span>';
+    return '<div class="cc '+(c.active?'':'inact')+'" onclick="openC('+c.id+')">'
+      +'<div class="ddb">'+c.date+'</div>'
+      +'<div><div class="cn">'+esc(c.name)+' '+inact+'</div>'
+      +'<div class="cs">'+esc(c.contact)+' &bull; '+freqBadge(c)+'</div></div>'
+      +'<div class="cf">'+gbp(c.mmf)+'</div>'
+      +'<svg style="width:12px;height:12px;color:var(--t3);flex-shrink:0" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3l4 4-4 4"/></svg>'
+      +'</div>';
+  }).join('');
+  var actCount=clients.filter(function(c){return c.active;}).length;
+  return '<div class="ph">'
+    +'<div><div class="pt">Clients</div><div class="ps">Sorted by due day &bull; '+actCount+' active</div></div>'
+    +'<div class="pa">'
+    +'<label class="si"><input type="checkbox" '+(SHOWINACT?'checked':'')+' onchange="SHOWINACT=this.checked;render()"> Show inactive</label>'
+    +'<button class="btn pri sm" onclick="openAdd()">+ Add client</button>'
+    +'</div></div>'
+    +'<div class="clist">'+(rows||'<div class="empty">No clients yet</div>')+'</div>';
+}
+
+// ── CLIENT DETAIL ──
+function vDetail(){
+  var c=clients.find(function(x){return x.id===SELID;});
+  if(!c) return vClients();
+  var paidCount=Object.values(c.payments).filter(function(v){return v===true;}).length;
+  var total=paidCount*parseFloat(c.mmf||0);
+  var rows='';
+  for(var g=CG-6;g<=CG+6;g++){
+    var ym=ymOf(g);
+    var st=dotState(c,g);
+    var fut=g>CG, cur=g===CG;
+    var billing=isBillingMonth(c,g);
+    var slbl={pd:'Paid',ov:'Overdue',im:'Not billed',ft:'Future',nd:'Not due'}[st]||'?';
+    var amtTxt=(st==='im'||st==='nd')?'&mdash;':gbp(c.mmf);
+    var amtCol=st==='pd'?'var(--gn)':(st==='im'||st==='nd')?'var(--t3)':'var(--t2)';
+    var btns='';
+    if(!fut&&billing){
+      btns='<button class="sbtn '+(st==='pd'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'paid\')">&#10003;</button>'
+        +'<button class="sbtn '+(st==='ov'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'overdue\')">!</button>'
+        +'<button class="sbtn '+(st==='im'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'inactive\')">&mdash;</button>';
+    } else {
+      btns='<span style="font-size:11px;color:var(--t3)">'+(fut?'future':'n/a')+'</span>';
+    }
+    var rs=cur?' style="background:#f8fef9;border-radius:6px;padding:8px 6px"':'';
+    rows+='<div class="hr"'+rs+'>'
+      +'<div class="hm" style="'+(cur?'color:var(--gn)':'')+'">'+MN[ym.m]+' '+ym.y+'</div>'
+      +'<div class="hs"><span class="sd" style="background:'+DCOL[st]+'"></span>'+slbl+(cur?' (now)':'')+'</div>'
+      +'<div class="ha" style="color:'+amtCol+'">'+amtTxt+'</div>'
+      +'<div style="display:flex;gap:4px">'+btns+'</div>'
+      +'</div>';
+  }
+  var iab=!c.active?'<div class="ibanner"><svg style="width:14px;height:14px;flex-shrink:0" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5.5"/><path d="M7 4v3.5"/><circle cx="7" cy="10" r="0.6" fill="currentColor"/></svg>This client is marked as inactive</div>':'';
+  var nbox=c.notes?'<div class="nbox"><svg style="width:14px;height:14px;flex-shrink:0;margin-top:1px" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 2.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9zM7 6v4"/><circle cx="7" cy="4.5" r="0.6" fill="currentColor"/></svg>'+esc(c.notes)+'</div>':'';
+  return '<button class="bb" onclick="go(\'clients\')">'
+    +'<svg style="width:14px;height:14px" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 2L5 7l4 5"/></svg>All clients</button>'
+    +iab
+    +'<div class="ph">'
+    +'<div><div class="pt">'+esc(c.name)+'</div><div class="ps">'+esc(c.contact)+'</div></div>'
+    +'<div style="display:flex;gap:6px">'
+    +'<button class="btn sm" onclick="openEdit('+c.id+')">Edit</button>'
+    +'<button class="btn sm dng" onclick="delC('+c.id+')">'
+    +'<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h10M5 4V2h4v2M5 7v4M9 7v4M3 4l.5 8h7L11 4"/></svg></button></div></div>'
+    +'<div class="card"><div class="dgrid">'
+    +'<div class="di"><label>Fee / charge</label><span style="color:var(--gn);font-family:DM Mono,monospace">'+gbp(c.mmf)+'</span></div>'
+    +'<div class="di"><label>Frequency</label><span>'+freqBadge(c)+'</span></div>'
+    +'<div class="di"><label>Payment due day</label><span>'+c.date+ord(c.date)+' of month</span></div>'
+    +'<div class="di"><label>Invoice raise day</label><span>'+(c.invoiceDay||'?')+ord(c.invoiceDay||0)+' of month</span></div>'
+    +'<div class="di"><label>Payment type</label><span>'+payBadge(c)+'</span></div>'
+    +'<div class="di"><label>Invoice type</label><span>'+invBadge(c)+'</span></div>'
+    +'<div class="di"><label>Status</label><span>'+(c.active?'<span class="bdg brec">Active</span>':'<span class="bdg bin">Inactive</span>')+'</span></div>'
+    +'<div class="di"><label>Total billed</label><span style="font-family:DM Mono,monospace">'+gbp(total)+'</span></div>'
+    +'</div>'+nbox+'</div>'
+    +'<div class="card"><div class="ct">Payment history &mdash; click buttons to update</div>'+rows+'</div>';
+}
+
+// ── MONTHLY VIEW (TABLE-BASED) ──
+function vMonthly(){
+  var visible=sortC(SHOWINACT?clients:clients.filter(function(c){return c.active;}));
+  // Columns: current month first (leftmost), scrolling right goes back in time to Apr 2025
+  var cols=[];
+  for(var g=CG;g>=CG-14;g--) cols.push(g);
+
+  // Next-month label for rollover button
+  var nextG=CG+1;
+  var nextYM=ymOf(nextG);
+  var nextLabel=MN[nextYM.m]+' '+nextYM.y;
+
+  // Build table header
+  var thead='<tr><th class="namecol">Client</th>';
+  var prevY=null;
+  for(var ci=0;ci<cols.length;ci++){
+    var g=cols[ci];
+    var ym=ymOf(g);
+    var isCur=(g===CG);
+    var yr=(ym.y!==prevY)?'<span style="font-size:8px;display:block;opacity:.7">'+ym.y+'</span>':'';
+    prevY=ym.y;
+    thead+='<th'+(isCur?' class="cur"':'')+' id="mhd'+g+'" style="min-width:52px">'+yr+MN[ym.m].slice(0,3)+'</th>';
+  }
+  thead+='</tr>';
+
+  // Pre-compute totals per column
+  var colTotals={}, colPaid={};
+  for(var ci=0;ci<cols.length;ci++){
+    var g=cols[ci], tot=0, paid=0;
+    for(var ri=0;ri<visible.length;ri++){
+      var c=visible[ri];
+      var st=dotState(c,g);
+      if(st!=='nd'&&st!=='ft'){ tot+=parseFloat(c.mmf||0); if(st==='pd') paid+=parseFloat(c.mmf||0); }
+    }
+    colTotals[g]=tot; colPaid[g]=paid;
+  }
+
+  // Build table rows
+  var tbody='';
+  for(var ri=0;ri<visible.length;ri++){
+    var c=visible[ri];
+    tbody+='<tr>'
+      +'<td class="namecol" style="cursor:pointer" onclick="openC('+c.id+')">'
+      +'<div style="font-size:12px;font-weight:500;color:var(--tx)">'+esc(c.name)+'</div>'
+      +'<div style="font-size:10px;color:var(--t3)">'+c.date+ord(c.date)+' &bull; '+esc(c.frequency)+'</div>'
+      +'</td>';
+    for(var ci2=0;ci2<cols.length;ci2++){
+      var cg=cols[ci2];
+      var st=dotState(c,cg);
+      var lbl=DLBL[st]||'';
+      var isFut=(st==='ft'||st==='nd');
+      var mid='dd'+c.id+'x'+cg;
+      var clickStr=isFut?'':' onclick="openDot(event,\''+mid+'\')"';
+      var dotEl='<span class="dot '+st+'" title="'+DTIT[st]+'"'+clickStr+'>'+lbl+'</span>';
+      var amtTxt='';
+      if(st!=='nd'&&st!=='ft'){
+        var amtColor=st==='pd'?'var(--gn)':st==='ov'?'var(--rd)':'var(--t3)';
+        amtTxt='<div style="font-size:9px;font-weight:600;font-family:DM Mono,monospace;color:'+amtColor+';margin-top:2px;line-height:1">'+gbp(c.mmf)+'</div>';
+      }
+      var menuEl='';
+      if(!isFut){
+        menuEl='<div class="dd" id="'+mid+'">'
+          +'<div class="ddi" onclick="setSt('+c.id+','+cg+',\'paid\');closeDots()">&#10003; Paid</div>'
+          +'<div class="ddi" onclick="setSt('+c.id+','+cg+',\'overdue\');closeDots()">! Overdue</div>'
+          +'<div class="ddi" onclick="setSt('+c.id+','+cg+',\'inactive\');closeDots()">&mdash; Not billed</div>'
+          +'</div>';
+      }
+      tbody+='<td><div class="mdm">'+dotEl+menuEl+'</div>'+amtTxt+'</td>';
+    }
+    tbody+='</tr>';
+  }
+
+  // Totals footer row
+  var tfoot='<tr style="background:var(--sf2)">'
+    +'<td class="namecol" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--t3);border-top:2px solid var(--bd2)">Totals</td>';
+  for(var ci=0;ci<cols.length;ci++){
+    var g=cols[ci];
+    var isCur=(g===CG);
+    var tot=colTotals[g]||0;
+    var paid=colPaid[g]||0;
+    var outstanding=tot-paid;
+    tfoot+='<td style="padding:5px 3px;border-right:1px solid var(--bd);border-top:2px solid var(--bd2);'+(isCur?'background:#eef6f2;':'')+'text-align:center">'
+      +'<div style="font-size:9px;font-weight:700;font-family:DM Mono,monospace;color:var(--gn);line-height:1.4">'+gbp(paid)+'</div>'
+      +(outstanding>0?'<div style="font-size:8px;font-family:DM Mono,monospace;color:var(--rd);line-height:1">&minus;'+gbp(outstanding)+'</div>':'')
+      +'</td>';
+  }
+  tfoot+='</tr>';
+
+  return '<div class="ph">'
+    +'<div><div class="pt">Monthly view</div><div class="ps">Current month left &bull; scroll right for history to Apr 2025</div></div>'
+    +'<div class="pa">'
+    +'<label class="si"><input type="checkbox" '+(SHOWINACT?'checked':'')+' onchange="SHOWINACT=this.checked;render()"> Inactive</label>'
+    +'<button class="btn grn sm" onclick="rolloverMonth()">&#43; Rollover to '+nextLabel+'</button>'
+    +'<button class="btn sm" onclick="exportCSV()">CSV</button>'
+    +'</div></div>'
+    +'<div class="legend">'
+    +'<div class="li"><span class="dot pd" style="width:16px;height:16px;font-size:9px">&#10003;</span> Paid</div>'
+    +'<div class="li"><span class="dot ov" style="width:16px;height:16px;font-size:9px">!</span> Overdue</div>'
+    +'<div class="li"><span class="dot im" style="width:16px;height:16px;font-size:9px">&mdash;</span> Not billed</div>'
+    +'<div class="li"><span class="dot nd" style="width:16px;height:16px"></span> Not due this month</div>'
+    +'<div class="li" style="margin-left:auto;font-size:11px;color:var(--t3)">Totals row: green=paid, red=outstanding</div>'
+    +'</div>'
+    +'<div class="mgwrap" id="mgwrap">'
+    +'<table class="mgtable" id="mgtable"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody><tfoot>'+tfoot+'</tfoot></table>'
+    +'</div>';
+}
+
+function scrollToToday(){
+  // Current month is the first column - just scroll to start
+  var wrap=document.getElementById('mgwrap');
+  if(wrap) wrap.scrollLeft=0;
+}
+
+function rolloverMonth(){
+  var nextG=CG+1;
+  var nextYM=ymOf(nextG);
+  var nextLabel=MN[nextYM.m]+' '+nextYM.y;
+  var active=clients.filter(function(c){return c.active;});
+  var count=0;
+  active.forEach(function(c){
+    // Only process clients that bill in the next month
+    if(!isBillingMonth(c,nextG)) return;
+    var nextKey=String(nextG);
+    // Don't overwrite if already set
+    if(c.payments[nextKey]!==undefined) return;
+    // Copy fee from current month (nothing to copy other than creating the entry as unpaid)
+    c.payments[nextKey]=false;
+    count++;
+  });
+  if(count===0){
+    toast('Nothing to roll over - all entries for '+nextLabel+' already exist');
+    return;
+  }
+  save();
+  toast('Rolled over '+count+' client'+(count===1?'':'s')+' into '+nextLabel);
+  render();
+}
+
+// ── OVERDUE ──
+function vOverdue(){
+  var od=sortC(clients.filter(isOverdueToday));
+  var total=od.reduce(function(s,c){return s+parseFloat(c.mmf||0);},0);
+  var upcoming=sortC(clients.filter(function(c){
+    if(!c.active||!isDueThisMonth(c)) return false;
+    var v=c.payments[String(CG)];
+    if(v===true||v==='inactive') return false;
+    return TD<(c.date||1);
+  }));
+  var rows=od.map(function(c){
+    return '<div class="oc" style="cursor:pointer" onclick="openC('+c.id+')">'
+      +'<div style="flex:1"><div class="on2">'+esc(c.name)+'</div>'
+      +'<div class="om">'+esc(c.contact)+' &bull; Due '+c.date+ord(c.date)+' &bull; '+payBadge(c)+' &bull; '+freqBadge(c)+'</div>'
+      +(c.notes?'<div class="om" style="font-style:italic">'+esc(c.notes)+'</div>':'')
+      +'</div>'
+      +'<div class="oact"><div class="oa">'+gbp(c.mmf)+'</div>'
+      +'<button class="btn grn sm" onclick="event.stopPropagation();qPay('+c.id+')">Paid</button>'
+      +'<button class="btn sm" onclick="event.stopPropagation();setSt('+c.id+','+CG+',\'inactive\')">Skip</button>'
+      +'</div></div>';
+  }).join('');
+  var upRows=upcoming.map(function(c){
+    var days=c.date-TD;
+    return '<div class="oc" style="opacity:.7">'
+      +'<div style="flex:1"><div class="on2" style="color:var(--t2)">'+esc(c.name)+'</div>'
+      +'<div class="om">Due '+c.date+ord(c.date)+' &mdash; '+days+' day'+(days===1?'':'s')+' away &bull; '+freqBadge(c)+'</div></div>'
+      +'<div class="oa" style="color:var(--am);font-size:14px">'+gbp(c.mmf)+'</div></div>';
+  }).join('');
+  return '<div class="ph">'
+    +'<div><div class="pt">Overdue</div><div class="ps">'+TD+' '+MN[TM]+' '+TY+'</div></div>'
+    +'<div class="pa"><button class="btn sm" onclick="exportCSV()">CSV</button></div></div>'
+    +'<div class="tbanner"><svg style="width:14px;height:14px;flex-shrink:0;margin-top:2px" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5.5"/><path d="M7 4v3.5L9 8"/></svg>'
+    +'<span>Only clients whose due date has passed today and are unpaid. Non-monthly clients only shown in their billing month.</span></div>'
+    +'<div class="mets">'
+    +'<div class="met"><div class="ml">Overdue now</div><div class="mv '+(od.length?'rd':'')+'">'+od.length+'</div></div>'
+    +'<div class="met"><div class="ml">Amount</div><div class="mv rd">'+gbp(total)+'</div></div>'
+    +'<div class="met"><div class="ml">Upcoming</div><div class="mv am">'+upcoming.length+'</div></div>'
+    +'</div>'
+    +'<div class="sh"><div class="st">Overdue &mdash; due date passed</div></div>'
+    +(rows||'<div class="empty">No overdue payments today! </div>')
+    +(upcoming.length?'<div class="sh" style="margin-top:1.25rem"><div class="st">Upcoming this month</div></div>'+upRows:'');
+}
+
+// ── SETTINGS ──
+function vSettings(){
+  function listEditor(key, label){
+    var items = OPTS[key];
+    var html = '<div class="card" style="margin-bottom:1rem">'
+      +'<div class="ct">'+label+'</div>'
+      +'<div class="settings-list" id="sl-'+key+'">';
+    items.forEach(function(item, i){
+      html += '<div class="set-item">'
+        +'<span class="set-item-label">'+esc(item)+'</span>'
+        +'<button class="btn sm dng" onclick="removeOpt(\''+key+'\','+i+')">Remove</button>'
+        +'</div>';
+    });
+    html += '</div>'
+      +'<div style="display:flex;gap:8px;margin-top:10px">'
+      +'<input type="text" id="new-'+key+'" placeholder="Add new option..." style="flex:1;padding:8px 10px;border:1px solid var(--bd2);border-radius:var(--r);font-size:13px;font-family:DM Sans,sans-serif;background:var(--bg);color:var(--tx)">'
+      +'<button class="btn grn sm" onclick="addOpt(\''+key+'\')">Add</button>'
+      +'</div></div>';
+    return html;
+  }
+  var syncCard='<div class="card" style="margin-bottom:1rem">'
+    +'<div class="ct">Database sync</div>'
+    +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+    +'<div style="flex:1;min-width:180px">'
+    +'<div style="font-size:13px;font-weight:500;color:var(--gn);margin-bottom:3px">&#10003; Connected to Supabase</div>'
+    +'<div style="font-size:12px;color:var(--t2)">Your data syncs automatically on every change. '
+    +'Accessible from any device — phone, tablet, desktop.</div>'
+    +'</div>'
+    +'<div style="text-align:right;flex-shrink:0">'
+    +'<div style="font-size:11px;color:var(--t3);margin-bottom:4px">Last sync</div>'
+    +'<div id="sync-badge-settings" style="font-size:12px;font-weight:500;color:var(--gn)">Active</div>'
+    +'</div></div>'
+    +'<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);display:flex;gap:8px;flex-wrap:wrap">'
+    +'<button class="btn sm grn" onclick="forceSyncFromDB()">&#8595; Reload from database</button>'
+    +'<button class="btn sm" onclick="forceSyncToDB()">&#8593; Force save to database</button>'
+    +'</div></div>';
+  return '<div class="ph"><div><div class="pt">Settings</div><div class="ps">Sync &amp; options</div></div></div>'
+    +syncCard
+    +listEditor('payTypes','Payment types')
+    +listEditor('invTypes','Invoice types')
+    +listEditor('freqTypes','Billing frequencies')
+    +'<div style="margin-top:1rem">'
+    +'<button class="btn dng sm" onclick="resetOpts()">Reset to defaults</button>'
+    +'</div>';
+}
+
+function addOpt(key){
+  var inp=document.getElementById('new-'+key);
+  var val=(inp&&inp.value||'').trim();
+  if(!val) return;
+  OPTS[key].push(val);
+  saveOpts();
+  inp.value='';
+  render();
+}
+function removeOpt(key,i){
+  OPTS[key].splice(i,1);
+  saveOpts();
+  render();
+}
+function resetOpts(){
+  if(!confirm('Reset all options to defaults?')) return;
+  OPTS = JSON.parse(JSON.stringify(DEFAULT_OPTS));
+  saveOpts();
+  toast('Options reset');
+  render();
+}
+
+// ── MODAL ──
+function vModal(){
+  var c=EDITC, e=(c!==null);
+  function selOpt(field,opts){
+    var cur = e?(c[field]||opts[0]):opts[0];
+    var html='<select id="f-'+field+'">';
+    opts.forEach(function(o){
+      html+='<option value="'+esc(o)+'"'+(o===cur?' selected':'')+'>'+esc(o)+'</option>';
+    });
+    html+='</select>';
+    return html;
+  }
+  // Active checkbox - standalone, NOT wrapped in label to avoid mobile issues
+  var activeChecked = e ? c.active : true;
+  return '<div class="mbg" id="mbg">'
+    +'<div class="modal" onclick="event.stopPropagation()">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.1rem">'
+    +'<div class="mtit" style="margin:0">'+(e?'Edit client':'New client')+'</div>'
+    +'<button class="btn sm" onclick="closeModal()">&#10005;</button></div>'
+    +'<div class="f2">'
+    +'<div class="fr"><label>Client name</label><input type="text" id="f-name" value="'+(e?esc(c.name):'')+'" placeholder="Acme Ltd"></div>'
+    +'<div class="fr"><label>Contact name</label><input type="text" id="f-contact" value="'+(e?esc(c.contact):'')+'" placeholder="Jane Smith"></div>'
+    +'</div>'
+    +'<div class="f3">'
+    +'<div class="fr"><label>Fee (&pound;)</label><input type="number" id="f-mmf" value="'+(e?c.mmf:'')+'" step="0.01" placeholder="299"><div class="fh">Monthly charge</div></div>'
+    +'<div class="fr"><label>Due day</label><input type="number" id="f-date" value="'+(e?c.date:1)+'" min="1" max="31"><div class="fh">Payment due</div></div>'
+    +'<div class="fr"><label>Invoice day</label><input type="number" id="f-invday" value="'+(e?(c.invoiceDay||c.date):1)+'" min="1" max="31"><div class="fh">Send invoice</div></div>'
+    +'</div>'
+    +'<div class="f2">'
+    +'<div class="fr"><label>Payment type</label>'+selOpt('payType',OPTS.payTypes)+'</div>'
+    +'<div class="fr"><label>Invoice type</label>'+selOpt('invType',OPTS.invTypes)+'</div>'
+    +'</div>'
+    +'<div class="fr"><label>Billing frequency</label>'+selOpt('frequency',OPTS.freqTypes)+'</div>'
+    +'<div class="fr"><label>Billing start month</label>'
+    +'<input type="number" id="f-anchor" value="'+(e?(c.anchorMonth||0):0)+'" min="0" max="11">'
+    +'<div class="fh">For non-monthly: 0=Jan 2026, 1=Feb, 2=Mar etc. Sets which months get billed.</div></div>'
+    +'<div class="fr"><label>Notes</label>'
+    +'<textarea id="f-notes" placeholder="e.g. Quarterly billing Jan, Apr, Jul, Oct">'+(e?esc(c.notes||''):'')+'</textarea></div>'
+    // Active as separate checkbox+label, not nested
+    +'<div class="fr" style="display:flex;align-items:center;gap:10px;padding:4px 0">'
+    +'<input type="checkbox" id="f-active" '+(activeChecked?'checked':'')+' style="width:18px;height:18px;cursor:pointer;flex-shrink:0">'
+    +'<label for="f-active" style="font-size:13px;font-weight:400;color:var(--tx);cursor:pointer;text-transform:none;letter-spacing:0">Active client</label>'
+    +'</div>'
+    +'<div class="fac">'
+    +'<button class="btn" onclick="closeModal()">Cancel</button>'
+    +'<button class="btn pri" onclick="saveC()">'+(e?'Save changes':'Add client')+'</button>'
+    +'</div></div></div>';
+}
+
+// ── ACTIONS ──
+function openC(id){ SELID=id; VIEW='client_detail'; render(); }
+function openAdd(){ MODAL=true; EDITC=null; render(); }
+function openEdit(id){ EDITC=clients.find(function(c){return c.id===id;}); MODAL=true; render(); }
+function closeModal(){ MODAL=false; render(); }
+
+function bindModal(){
+  var bg=document.getElementById('mbg');
+  if(bg) bg.addEventListener('click',function(e){if(e.target===bg)closeModal();});
+  document.addEventListener('click',function(e){
+    if(!e.target.closest('.mdm')) closeDots();
+  },{once:true});
+}
+
+function saveC(){
+  var name=(document.getElementById('f-name').value||'').trim();
+  var contact=(document.getElementById('f-contact').value||'').trim();
+  var date=parseInt(document.getElementById('f-date').value)||1;
+  var invoiceDay=parseInt(document.getElementById('f-invday').value)||1;
+  var mmf=parseFloat(document.getElementById('f-mmf').value)||0;
+  var payType=document.getElementById('f-payType').value;
+  var invType=document.getElementById('f-invType').value;
+  var frequency=document.getElementById('f-frequency').value;
+  var anchorMonth=parseInt(document.getElementById('f-anchor').value)||0;
+  var notes=(document.getElementById('f-notes').value||'').trim();
+  var active=document.getElementById('f-active').checked;
+  if(!name){document.getElementById('f-name').focus();return;}
+  if(EDITC){
+    var i=clients.findIndex(function(c){return c.id===EDITC.id;});
+    clients[i]=Object.assign({},clients[i],{name:name,contact:contact,date:date,invoiceDay:invoiceDay,
+      mmf:mmf,payType:payType,invType:invType,frequency:frequency,anchorMonth:anchorMonth,notes:notes,active:active});
+    toast('Client updated');
+  } else {
+    clients.push({id:nextId++,date:date,invoiceDay:invoiceDay,name:name,contact:contact,
+      payType:payType,invType:invType,frequency:frequency,anchorMonth:anchorMonth,
+      mmf:mmf,notes:notes,active:active,payments:{}});
+    toast('Client added');
+  }
+  save(); MODAL=false;
+  if(VIEW==='client_detail') render();
+  else { VIEW='clients'; render(); }
+}
+
+function delC(id){
+  if(!confirm('Delete this client? This cannot be undone.')) return;
+  clients=clients.filter(function(c){return c.id!==id;});
+  save(); toast('Client deleted'); VIEW='clients'; render();
+}
+
+function setSt(cid,g,st){
+  var c=clients.find(function(x){return x.id===cid;});
+  if(!c) return;
+  if(st==='paid') c.payments[String(g)]=true;
+  else if(st==='inactive') c.payments[String(g)]='inactive';
+  else c.payments[String(g)]=false;
+  save();
+  toast({paid:'Marked paid',overdue:'Marked overdue',inactive:'Marked not billed'}[st]||'Updated');
+  render();
+}
+function qPay(id){ setSt(id,CG,'paid'); }
+
+function openDot(e,mid){ e.stopPropagation(); closeDots(); var m=document.getElementById(mid); if(m) m.classList.add('open'); }
+function closeDots(){ document.querySelectorAll('.dd').forEach(function(d){d.classList.remove('open');}); }
+
+function exportCSV(){
+  var s=gm(TY,0), en=gm(TY+1,11), cols=[];
+  for(var g=s;g<=en;g++) cols.push(g);
+  var hdr=['Client','Contact','Due Day','Invoice Day','Fee','Pay Type','Inv Type','Frequency','Active','Notes']
+    .concat(cols.map(function(g){var ym=ymOf(g);return MN[ym.m]+' '+ym.y;})).join(',');
+  var rows=clients.map(function(c){
+    var mc=cols.map(function(g){
+      var v=c.payments[String(g)];
+      if(v===true) return 'Paid';
+      if(v==='inactive') return 'Not billed';
+      if(g>CG) return 'Future';
+      if(!isBillingMonth(c,g)) return 'Not due';
+      return 'Overdue';
+    }).join(',');
+    return ['"'+(c.name||'').replace(/"/g,'""')+'"','"'+(c.contact||'').replace(/"/g,'""')+'"',
+      c.date,c.invoiceDay||'',c.mmf,c.payType||'',c.invType||'',c.frequency||'',
+      c.active?'Yes':'No','"'+(c.notes||'').replace(/"/g,'""')+'"',mc].join(',');
+  });
+  var csv=[hdr].concat(rows).join('\n');
+  var blob=new Blob([csv],{type:'text/csv'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url; a.download='billing-'+TODAY.toISOString().slice(0,10)+'.csv';
+  a.click(); URL.revokeObjectURL(url);
+  toast('CSV exported');
+}
+
+
+// ── GOOGLE DRIVE SYNC ──
+var DRIVE_FILENAME = 'billing-tracker-data.json';
+var driveStatus = ''; // message shown in settings
+
+function getDriveToken(){
+  // Try to get token from cookie or meta tag injected by Claude's Drive connector
+  // Claude's Google Drive MCP connector exposes the token via window.GAPI_TOKEN or similar
+  // We use the fetch-based Drive REST API with the user's session
+  return null; // placeholder — actual auth handled via Claude connector proxy
+}
+
+function driveSave(){
+  if(!window.BT_DRIVE_TOKEN){ toast('No Drive token - enter it in Settings'); return; }
+  driveStatus = 'saving';
+  renderSettingsDriveStatus();
+  var payload = JSON.stringify({clients:clients, opts:OPTS, savedAt:new Date().toISOString(), version:'bt_v4'}, null, 2);
+
+  fetch('https://www.googleapis.com/drive/v3/files?q=name%3D%27billing-tracker-data.json%27+and+trashed%3Dfalse&fields=files(id,name)', {
+    headers: {'Authorization':'Bearer '+window.BT_DRIVE_TOKEN}
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var fileId = data.files && data.files[0] ? data.files[0].id : null;
+    if(fileId){
+      return fetch('https://www.googleapis.com/upload/drive/v3/files/'+fileId+'?uploadType=media', {
+        method:'PATCH',
+        headers:{'Authorization':'Bearer '+window.BT_DRIVE_TOKEN, 'Content-Type':'application/json'},
+        body:payload
+      });
+    } else {
+      var boundary='bt_boundary_xyz';
+      var meta=JSON.stringify({name:'billing-tracker-data.json',mimeType:'application/json'});
+      var body='--'+boundary+'\r\nContent-Type: application/json\r\n\r\n'+meta+'\r\n--'+boundary+'\r\nContent-Type: application/json\r\n\r\n'+payload+'\r\n--'+boundary+'--';
+      return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+window.BT_DRIVE_TOKEN, 'Content-Type':'multipart/related; boundary='+boundary},
+        body:body
+      });
+    }
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(data.id||data.kind){ driveStatus='saved:'+new Date().toLocaleTimeString(); toast('Saved to Google Drive'); }
+    else { driveStatus='error:Save failed - token may have expired'; toast('Drive save failed'); }
+    renderSettingsDriveStatus();
+  })
+  .catch(function(e){ driveStatus='error:'+e.message; toast('Drive error: '+e.message); renderSettingsDriveStatus(); });
+}
+
+function driveLoad(){
+  if(!window.BT_DRIVE_TOKEN){
+    toast('No Drive token - enter it below');
+    return;
+  }
+  driveStatus = 'loading';
+  renderSettingsDriveStatus();
+  fetch('https://www.googleapis.com/drive/v3/files?q=name%3D%27'+encodeURIComponent(DRIVE_FILENAME)+'%27+and+trashed%3Dfalse&fields=files(id,name,modifiedTime)', {
+    headers: { 'Authorization': 'Bearer '+window.BT_DRIVE_TOKEN }
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(!data.files || !data.files[0]){
+      driveStatus = 'error:No backup file found on Drive';
+      toast('No backup found on Drive');
+      renderSettingsDriveStatus();
+      return Promise.reject('no file');
+    }
+    var fileId = data.files[0].id;
+    driveStatus = 'loading:Found file, downloading...';
+    renderSettingsDriveStatus();
+    return fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media', {
+      headers: { 'Authorization': 'Bearer '+window.BT_DRIVE_TOKEN }
+    });
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(!data.clients){
+      driveStatus = 'error:Invalid backup file format';
+      toast('Invalid backup format');
+      renderSettingsDriveStatus();
+      return;
+    }
+    clients = data.clients;
+    if(data.opts) OPTS = data.opts;
+    // migrate
+    clients.forEach(function(c){
+      if(!c.payType) c.payType='Bank Transfer';
+      if(!c.invType) c.invType='Manual';
+      if(!c.frequency) c.frequency='Monthly';
+      if(c.anchorMonth===undefined) c.anchorMonth=0;
+      if(!c.invoiceDay) c.invoiceDay=c.date;
+      if(c.active===undefined) c.active=true;
+    });
+    nextId = clients.length ? Math.max.apply(null,clients.map(function(c){return c.id;}))+1 : 1;
+    save(); saveOpts();
+    driveStatus = 'loaded:'+new Date(data.savedAt).toLocaleString();
+    toast('Loaded from Google Drive - '+clients.length+' clients');
+    VIEW='dashboard';
+    render();
+  })
+  .catch(function(e){
+    if(e!=='no file'){
+      driveStatus = 'error:'+e.message;
+      toast('Drive error: '+e.message);
+      renderSettingsDriveStatus();
+    }
+  });
+}
+
+function setDriveToken(){
+  var inp=document.getElementById('drive-token-input');
+  var tok=(inp&&inp.value||'').trim();
+  if(!tok){ toast('Please paste a token first'); return; }
+  window.BT_DRIVE_TOKEN = tok;
+  try{ localStorage.setItem('bt_drive_token', tok); }catch(e){}
+  driveStatus = 'token-set';
+  toast('Token saved - you can now Save/Load');
+  renderSettingsDriveStatus();
+}
+
+function renderSettingsDriveStatus(){
+  // Just re-render the drive status area without full render
+  var el=document.getElementById('drive-status-area');
+  if(el) el.innerHTML=buildDriveStatusHtml();
+}
+
+function buildDriveStatusHtml(){
+  var savedToken = '';
+  try{ savedToken=localStorage.getItem('bt_drive_token')||''; }catch(e){}
+  if(savedToken && !window.BT_DRIVE_TOKEN) window.BT_DRIVE_TOKEN=savedToken;
+
+  var statusHtml='';
+  if(driveStatus.indexOf('saving')===0||driveStatus.indexOf('loading')===0){
+    statusHtml='<div style="color:var(--am);font-size:12px;margin-top:6px">&#8987; '+driveStatus.replace('loading:','').replace('loading','Loading...')+'...</div>';
+  } else if(driveStatus.indexOf('saved:')===0){
+    statusHtml='<div style="color:var(--gn);font-size:12px;margin-top:6px">&#10003; Last saved: '+driveStatus.slice(6)+'</div>';
+  } else if(driveStatus.indexOf('loaded:')===0){
+    statusHtml='<div style="color:var(--gn);font-size:12px;margin-top:6px">&#10003; Loaded from backup saved: '+driveStatus.slice(7)+'</div>';
+  } else if(driveStatus.indexOf('error:')===0){
+    statusHtml='<div style="color:var(--rd);font-size:12px;margin-top:6px">&#10005; '+driveStatus.slice(6)+'</div>';
+  } else if(driveStatus==='token-set'){
+    statusHtml='<div style="color:var(--gn);font-size:12px;margin-top:6px">&#10003; Token saved - ready to sync</div>';
+  }
+
+  var hasToken=!!(window.BT_DRIVE_TOKEN||savedToken);
+  return '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+    +'<button class="btn grn sm" onclick="driveSave()" '+(hasToken?'':'disabled title="Enter token first"')+'>&#8593; Save to Drive</button>'
+    +'<button class="btn sm" onclick="driveLoad()" '+(hasToken?'':'disabled title="Enter token first"')+'>&#8595; Load from Drive</button>'
+    +'</div>'
+    +statusHtml
+    +'<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--bd)">'
+    +'<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--t3);margin-bottom:6px">Google OAuth Token</div>'
+    +'<div style="font-size:12px;color:var(--t2);margin-bottom:8px">Paste your Google OAuth access token below. '
+    +'Get one by visiting <a href="https://developers.google.com/oauthplayground" target="_blank" style="color:var(--bl)">OAuth Playground</a>, '
+    +'authorising <em>drive.file</em> scope, and copying the Access Token. Tokens expire after 1 hour.</div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<input type="password" id="drive-token-input" placeholder="ya29.a0..." style="flex:1;padding:8px 10px;border:1px solid var(--bd2);border-radius:var(--r);font-size:13px;font-family:DM Sans,sans-serif;background:var(--bg);color:var(--tx)">'
+    +'<button class="btn sm pri" onclick="setDriveToken()">Save token</button>'
+    +'</div>'
+    +(hasToken?'<div style="font-size:11px;color:var(--gn);margin-top:5px">&#10003; Token loaded</div>':'')
+    +'</div>';
+}
+
+function forceSyncFromDB(){
+  toast('Reloading from database...');
+  loadFromSupabase();
+}
+function forceSyncToDB(){
+  updateSyncBadge('saving');
+  sbSet('clients', clients, function(err){
+    if(err){ updateSyncBadge('error'); toast('Sync failed'); }
+    else { updateSyncBadge('ok'); toast('Saved to database'); }
+  });
+  sbSet('opts', OPTS);
+}
+
+// Render immediately from cache, then refresh from Supabase
+render();
+loadFromSupabase();
+</script>
+</body>
+</html>
