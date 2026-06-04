@@ -1219,10 +1219,22 @@ function closeModal(){ MODAL=false; render(); }
 function bindModal(){
   var bg=document.getElementById('mbg');
   if(bg) bg.addEventListener('click',function(e){if(e.target===bg)closeModal();});
-  document.addEventListener('click',function(e){
-    if(!e.target.closest('.mdm')) closeDots();
-  },{once:true});
+  // Dot close handler is set up once globally, not per-render
 }
+
+// Global click handler for closing dot dropdowns — set up once, not inside render
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.mdm') && !e.target.closest('.dd')){
+    closeDots();
+  }
+});
+// Touch equivalent for mobile
+document.addEventListener('touchend',function(e){
+  if(!e.target.closest('.mdm') && !e.target.closest('.dd')){
+    // Small delay so the tap that opened the menu doesn't immediately close it
+    setTimeout(closeDots, 50);
+  }
+},{passive:true});
 
 function saveC(){
   var name=(document.getElementById('f-name').value||'').trim();
@@ -1283,7 +1295,13 @@ function setSt(cid,g,st){
 }
 function qPay(id){ setSt(id,CG,'paid'); }
 
-function openDot(e,mid){ e.stopPropagation(); closeDots(); var m=document.getElementById(mid); if(m) m.classList.add('open'); }
+function openDot(e,mid){
+  e.stopPropagation();
+  e.preventDefault(); // prevent touch -> click double-fire
+  closeDots();
+  var m=document.getElementById(mid);
+  if(m) m.classList.add('open');
+}
 function closeDots(){ document.querySelectorAll('.dd').forEach(function(d){d.classList.remove('open');}); }
 
 function exportCSV(){
