@@ -562,32 +562,23 @@ function vDetail(){
     return s+(c.payments[gk]===true?dispAmt(c,parseInt(gk)):0);
   },0);
   var rows='';
-  // Newest first, skip nd/im rows and zero-amount paid rows
+  var rows='';
   for(var g=CG;g>=CG-14;g--){
     var ym=ymOf(g);
     var st=dotState(c,g);
-    var fut=g>CG, cur=g===CG;
-    if(st==='nd') continue;  // auto not-due hidden; manual 'mn' and 'im' shown for editing
-    var rowAmt=dispAmt(c,g);
-    if(rowAmt===0) continue;  // skip all zero-amount rows regardless of status
-    var slbl={pd:'Paid',ov:'Overdue',up:'Unpaid',mn:'Not due (manual)',im:'Not billed',ft:'Future'}[st]||'Awaiting';
-    var amtTxt=gbp(rowAmt);
+    if(st==='nd'||st==='ft') continue;
+    var rowAmt=parseFloat(dispAmt(c,g));
+    if(rowAmt===0) continue;
+    var slbl={pd:'Paid',ov:'Overdue',up:'Unpaid',mn:'Not due',im:'Not billed'}[st]||'Unpaid';
     var amtCol=st==='pd'?'var(--gn)':st==='ov'?'var(--rd)':'var(--t2)';
-    var actionCol='';
-    if(st==='pd'){
-      actionCol='<button class="btn sm" style="font-size:11px;padding:3px 8px" onclick="openHistEdit('+c.id+','+g+')">Edit</button>';
-    } else if(!fut){
-      actionCol='<button class="sbtn '+(st==='pd'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'paid\')">&#10003;</button>'
-        +'<button class="sbtn '+(st==='ov'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'overdue\')">!</button>'
-        +'<button class="sbtn '+(st==='im'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'inactive\')">&mdash;</button>'
-        +'<button class="sbtn '+(st==='nd'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'notdue\')">&#9633;</button>';
-    }
+    var cur=g===CG;
+    var editBtn='<button class="btn sm" style="font-size:11px;padding:3px 8px" onclick="openHistEdit('+c.id+','+g+')">Edit</button>';
     var rs=cur?' style="background:#f8fef9;border-radius:6px;padding:8px 6px"':'';
     rows+='<div class="hr"'+rs+'>'
       +'<div class="hm" style="'+(cur?'color:var(--gn)':'')+'">'+MN[ym.m]+' '+ym.y+'</div>'
       +'<div class="hs"><span class="sd" style="background:'+DCOL[st]+'"></span>'+slbl+(cur?' (now)':'')+'</div>'
-      +'<div class="ha" style="color:'+amtCol+'">'+amtTxt+'</div>'
-      +'<div style="display:flex;gap:4px">'+actionCol+'</div>'
+      +'<div class="ha" style="color:'+amtCol+'">'+gbp(rowAmt)+'</div>'
+      +'<div>'+editBtn+'</div>'
       +'</div>';
   }
   var iab=!c.active?'<div class="ibanner"><svg style="width:14px;height:14px;flex-shrink:0" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5.5"/><path d="M7 4v3.5"/><circle cx="7" cy="10" r="0.6" fill="currentColor"/></svg>This client is marked as inactive</div>':'';
