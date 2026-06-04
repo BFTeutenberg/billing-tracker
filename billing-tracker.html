@@ -94,7 +94,8 @@ body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-siz
 .dot.ov{background:var(--rdbg);color:var(--rd);border:1px solid #f0b0b0;}
 .dot.im{background:var(--inbg);color:var(--in);border:1px solid #d8cedf;}
 .dot.ft,.dot.nd{background:var(--sf2);color:var(--bd2);border:1px dashed var(--bd);cursor:default;}
-.dot.up{background:var(--sf2);color:var(--t3);border:1px solid var(--bd);}
+.dot.up{background:var(--sf2);color:var(--t3);border:1px solid var(--bd2);cursor:pointer;}
+.dot.up:hover{background:#fff3e0;border-color:var(--am);color:var(--am);transform:scale(1.15);}
 .dot.ft:hover,.dot.nd:hover{transform:none;}
 /* Monthly grid - TABLE based for reliable rendering */
 .mgwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--bd);border-radius:var(--rl);}
@@ -790,7 +791,7 @@ function vMonthly(){
     +'<div class="li"><span class="dot pd" style="width:16px;height:16px;font-size:9px">&#10003;</span> Paid</div>'
     +'<div class="li"><span class="dot ov" style="width:16px;height:16px;font-size:9px">!</span> Overdue</div>'
     +'<div class="li"><span class="dot im" style="width:16px;height:16px;font-size:9px">&mdash;</span> Not billed</div>'
-    +'<div class="li"><span class="dot up" style="width:16px;height:16px"></span> Unpaid</div>'
+    +'<div class="li"><span class="dot up" style="width:16px;height:16px;font-size:9px">?</span> Unpaid (click to update)</div>'
     +'<div class="li"><span class="dot nd" style="width:16px;height:16px"></span> Not due this month</div>'
     +'<div class="li" style="margin-left:auto;font-size:11px;color:var(--t3)">Totals row: green=paid, red=outstanding</div>'
     +'</div>'
