@@ -379,16 +379,10 @@ function loadFromSupabase(){
   sbGet('clients', function(err, val){
     if(err){ updateSyncBadge('offline'); return; }
     if(val && Array.isArray(val) && val.length > 0){
-      // Don't overwrite if a local save is queued — local data is newer
-      if(SAVE_TIMER || SAVE_PENDING){ updateSyncBadge('ok'); return; }
-      // Preserve any monthAmounts that exist in memory but not yet in DB
-      var incoming = migrateClients(val);
-      incoming.forEach(function(nc){
-        var existing = clients.find(function(oc){ return oc.id === nc.id; });
-        if(existing && existing.monthAmounts) nc.monthAmounts = existing.monthAmounts;
-        if(existing && existing.activityLog) nc.activityLog = existing.activityLog;
-      });
-      clients = incoming;
+      // Only skip if THIS device has a pending save in flight (locally edited, not yet pushed)
+      if(SAVE_PENDING){ updateSyncBadge('ok'); return; }
+      // Supabase is the source of truth — always use it, overwrite local cache fully
+      clients = migrateClients(val);
       nextId = clients.length ? Math.max.apply(null,clients.map(function(c){return c.id;}))+1 : 1;
       try{ localStorage.setItem('bt_v4',JSON.stringify(clients)); }catch(e){}
     }
