@@ -97,6 +97,7 @@ body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-siz
 .dot.up{background:var(--sf2);color:var(--t3);border:1px solid var(--bd2);cursor:pointer;}
 .dot.up:hover{background:#fff3e0;border-color:var(--am);color:var(--am);transform:scale(1.15);}
 .dot.ft:hover,.dot.nd:hover{transform:none;}
+.dot.mn{background:var(--ibg);color:var(--in);border:1px dashed #d8cedf;cursor:pointer;}
 /* Monthly grid - TABLE based for reliable rendering */
 .mgwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--bd);border-radius:var(--rl);}
 .mgtable{border-collapse:collapse;background:var(--sf);}
@@ -424,13 +425,12 @@ function dotState(c,g){
   var v=c.payments[String(g)];
   if(v===true) return 'pd';
   if(v==='inactive') return 'im';
-  if(v==='notdue') return 'nd';
+  if(v==='notdue') return 'mn'; // manually set not-due — editable unlike auto 'nd'
   if(g>CG) return 'ft';
-  if(!isBillingMonth(c,g)) return 'nd';
-  // Only show red overdue dot if the due date has actually passed today
-  if(g===CG && TD < (c.date||1)) return 'up'; // current month, not yet due
-  if(g===CG) return 'ov'; // current month, past due date
-  return 'up'; // past months always neutral (not red) - use edit to correct
+  if(!isBillingMonth(c,g)) return 'nd'; // auto not-due from billing frequency — locked
+  if(g===CG && TD < (c.date||1)) return 'up';
+  if(g===CG) return 'ov';
+  return 'up';
 }
 
 var VIEW='dashboard', SELID=null, MODAL=false, EDITC=null, SHOWINACT=false, SHOWINACT_M=false;
@@ -564,10 +564,10 @@ function vDetail(){
     var ym=ymOf(g);
     var st=dotState(c,g);
     var fut=g>CG, cur=g===CG;
-    if(st==='nd'||st==='im') continue;
+    if(st==='nd') continue;  // auto not-due hidden; manual 'mn' and 'im' shown for editing
     var rowAmt=dispAmt(c,g);
     if(st==='pd'&&rowAmt===0) continue;
-    var slbl={pd:'Paid',ov:'Overdue',up:'Unpaid',ft:'Future'}[st]||'Awaiting';
+    var slbl={pd:'Paid',ov:'Overdue',up:'Unpaid',mn:'Not due (manual)',im:'Not billed',ft:'Future'}[st]||'Awaiting';
     var amtTxt=gbp(rowAmt);
     var amtCol=st==='pd'?'var(--gn)':st==='ov'?'var(--rd)':'var(--t2)';
     var actionCol='';
@@ -671,7 +671,7 @@ function vMonthly(){
       var st=dotState(c,cg);
       var lbl=DLBL[st]||'';
       var isFut=(st==='ft');  // true future months are always locked
-      var isLocked=isFut||(st==='pd')||(st==='nd');  // paid+notdue+future locked; overdue/unpaid/notbilled editable
+      var isLocked=isFut||(st==='pd')||(st==='nd');  // 'nd'=auto not-due locked; 'mn'=manual not-due is editable
       var mid='dd'+c.id+'x'+cg;
       var clickStr=isLocked?'':' onclick="openDot(event,\''+mid+'\')"';
       var lockTitle=st==='pd'?'Paid — edit via client record':DTIT[st];
@@ -725,7 +725,7 @@ function vMonthly(){
         var cgx=cols[cii];
         var stx=dotState(ic,cgx);
         var lblx=DLBL[stx]||'';
-        var isLockedx=(stx==='ft')||(stx==='pd')||(stx==='nd');
+        var isLockedx=(stx==='ft')||(stx==='pd')||(stx==='nd');  // mn (manual not-due) remains editable
         var midx='dd'+ic.id+'x'+cgx;
         var clkx=isLockedx?'':' onclick="openDot(event,\''+midx+'\')"';
         var dotx='<span class="dot '+stx+'" title="'+DTIT[stx]+'"'+clkx+'>'+lblx+'</span>';
@@ -792,7 +792,8 @@ function vMonthly(){
     +'<div class="li"><span class="dot ov" style="width:16px;height:16px;font-size:9px">!</span> Overdue</div>'
     +'<div class="li"><span class="dot im" style="width:16px;height:16px;font-size:9px">&mdash;</span> Not billed</div>'
     +'<div class="li"><span class="dot up" style="width:16px;height:16px;font-size:9px">?</span> Unpaid (click to update)</div>'
-    +'<div class="li"><span class="dot nd" style="width:16px;height:16px"></span> Not due this month</div>'
+    +'<div class="li"><span class="dot mn" style="width:16px;height:16px;font-size:9px">&mdash;</span> Not due (manual)</div>'
+    +'<div class="li"><span class="dot nd" style="width:16px;height:16px"></span> Not due (auto)</div>'
     +'<div class="li" style="margin-left:auto;font-size:11px;color:var(--t3)">Totals row: green=paid, red=outstanding</div>'
     +'</div>'
     +'<div class="mgwrap" id="mgwrap">'
