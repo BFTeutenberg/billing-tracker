@@ -569,7 +569,7 @@ function vDetail(){
     var fut=g>CG, cur=g===CG;
     if(st==='nd') continue;  // auto not-due hidden; manual 'mn' and 'im' shown for editing
     var rowAmt=dispAmt(c,g);
-    if(st==='pd'&&rowAmt===0) continue;
+    if(rowAmt===0) continue;  // skip all zero-amount rows regardless of status
     var slbl={pd:'Paid',ov:'Overdue',up:'Unpaid',mn:'Not due (manual)',im:'Not billed',ft:'Future'}[st]||'Awaiting';
     var amtTxt=gbp(rowAmt);
     var amtCol=st==='pd'?'var(--gn)':st==='ov'?'var(--rd)':'var(--t2)';
@@ -1116,24 +1116,31 @@ function addLogEntry(cid){
 // ── HISTORY EDIT MODAL ──
 var HIST_EDIT = null; // {cid, g}
 
+var HIST_PENDING_ST = null; // global — avoids dataset API issues on mobile
+
 function openHistEdit(cid, g){
   HIST_EDIT = {cid:cid, g:g};
+  HIST_PENDING_ST = null; // reset
   var c = clients.find(function(x){return x.id===cid;});
   var ym = ymOf(g);
   var st = dotState(c,g);
   var amt = dispAmt(c,g);
+  var stBtns = [
+    {k:'paid', lbl:'&#10003; Paid'},
+    {k:'overdue', lbl:'! Overdue'},
+    {k:'inactive', lbl:'&mdash; Not billed'},
+    {k:'notdue', lbl:'&#9633; Not due'}
+  ].map(function(s){
+    var on=(s.k==='paid'&&st==='pd')||(s.k==='overdue'&&st==='ov')||(s.k==='inactive'&&st==='im')||(s.k==='notdue'&&(st==='nd'||st==='mn'));
+    return '<button class="sbtn '+(on?'on':'')+' he-stbtn" style="padding:8px;font-size:13px" onclick="pickHeSt(event,\''+s.k+'\')">'+(on&&!HIST_PENDING_ST?(HIST_PENDING_ST=s.k,s.lbl):s.lbl)+'</button>';
+  }).join('');
   var html = '<div class="mbg" id="he-bg">'
-    +'<div class="modal" onclick="event.stopPropagation()">'
+    +'<div class="modal" onclick="event.stopPropagation()" style="max-width:340px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">'
     +'<div class="mtit" style="margin:0">Edit '+MN[ym.m]+' '+ym.y+'</div>'
     +'<button class="btn sm" onclick="closeHistEdit()">&#10005;</button></div>'
     +'<div class="fr"><label>Status</label>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">'
-    +'<button class="sbtn '+(st==='pd'?'on':'')+' ddst" onclick="setDotSt(event,\'he-status\',\'paid\')" id="he-pd">&#10003; Paid</button>'
-    +'<button class="sbtn '+(st==='ov'?'on':'')+' ddst" onclick="setDotSt(event,\'he-status\',\'overdue\')" id="he-ov">! Overdue</button>'
-    +'<button class="sbtn '+(st==='im'?'on':'')+' ddst" onclick="setDotSt(event,\'he-status\',\'inactive\')" id="he-im">Not billed</button>'
-    +'<button class="sbtn '+(st==='nd'?'on':'')+' ddst" onclick="setDotSt(event,\'he-status\',\'notdue\')" id="he-nd">Not due</button>'
-    +'</div><div id="he-status" data-pending-st=""></div></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px" id="he-stgrid">'+stBtns+'</div></div>'
     +'<div class="fr"><label>Amount &pound;</label>'
     +'<input type="text" inputmode="decimal" id="he-amt" value="'+amt+'" style="width:100%;padding:9px 10px;border:1px solid var(--bd2);border-radius:var(--r);font-size:14px;font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx)"></div>'
     +'<div class="fac">'
@@ -1143,6 +1150,15 @@ function openHistEdit(cid, g){
   document.getElementById('main').insertAdjacentHTML('beforeend', html);
   var bg = document.getElementById('he-bg');
   if(bg) bg.addEventListener('click', function(e){ if(e.target===bg) closeHistEdit(); });
+}
+
+function pickHeSt(e, st){
+  e.stopPropagation();
+  e.preventDefault();
+  HIST_PENDING_ST = st;
+  var grid = document.getElementById('he-stgrid');
+  if(grid) grid.querySelectorAll('.he-stbtn').forEach(function(b){ b.classList.remove('on'); });
+  e.currentTarget.classList.add('on');
 }
 
 function closeHistEdit(){
@@ -1156,9 +1172,8 @@ function saveHistEdit(){
   var c = clients.find(function(x){return x.id===HIST_EDIT.cid;});
   if(!c) return;
   var g = HIST_EDIT.g;
-  // Read status
-  var statusEl = document.getElementById('he-status');
-  var newSt = statusEl ? statusEl.dataset.pendingSt : '';
+  // Read status from global variable (more reliable than dataset on mobile)
+  var newSt = HIST_PENDING_ST || '';
   // Read amount
   var amtEl = document.getElementById('he-amt');
   var raw = (amtEl ? amtEl.value : '').replace(/[^0-9.]/g,'');
