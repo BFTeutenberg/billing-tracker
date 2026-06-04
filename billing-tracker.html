@@ -305,9 +305,11 @@ function isBillingMonth(c,g){
 function isDueThisMonth(c){ return isBillingMonth(c,CG); }
 function isOverdueToday(c){
   if(!c.active) return false;
-  if(!isDueThisMonth(c)) return false;
   var v = c.payments[String(CG)];
-  if(v===true||v==='inactive') return false;
+  if(v===true||v==='inactive'||v==='notdue') return false;
+  // Explicitly marked overdue always shows regardless of date
+  if(v==='overdue') return true;
+  if(!isDueThisMonth(c)) return false;
   return TD >= (c.date||1);
 }
 
@@ -425,12 +427,13 @@ function dotState(c,g){
   var v=c.payments[String(g)];
   if(v===true) return 'pd';
   if(v==='inactive') return 'im';
-  if(v==='notdue') return 'mn'; // manually set not-due — editable unlike auto 'nd'
+  if(v==='notdue') return 'mn'; // manually set not-due — editable
+  if(v==='overdue') return 'ov'; // explicitly marked overdue
   if(g>CG) return 'ft';
   if(!isBillingMonth(c,g)) return 'nd'; // auto not-due from billing frequency — locked
-  if(g===CG && TD < (c.date||1)) return 'up';
-  if(g===CG) return 'ov';
-  return 'up';
+  if(g===CG && TD < (c.date||1)) return 'up'; // current month, not yet due
+  if(g===CG) return 'ov'; // current month past due date
+  return 'up'; // past months — neutral until explicitly set
 }
 
 var VIEW='dashboard', SELID=null, MODAL=false, EDITC=null, SHOWINACT=false, SHOWINACT_M=false;
@@ -1028,7 +1031,8 @@ function saveMonthBoth(cid, g, mid){
     if(newSt==='paid') c.payments[String(g)]=true;
     else if(newSt==='inactive') c.payments[String(g)]='inactive';
     else if(newSt==='notdue') c.payments[String(g)]='notdue';
-    else c.payments[String(g)]=false;
+    else if(newSt==='overdue') c.payments[String(g)]='overdue';
+    else c.payments[String(g)]=false; // generic unpaid
     var ym=ymOf(g);
     addLog(c, 'Status for '+MN[ym.m]+' '+ym.y+' set to '+newSt);
   }
@@ -1164,7 +1168,8 @@ function saveHistEdit(){
     if(newSt==='paid') c.payments[String(g)]=true;
     else if(newSt==='inactive') c.payments[String(g)]='inactive';
     else if(newSt==='notdue') c.payments[String(g)]='notdue';
-    else c.payments[String(g)]=false;
+    else if(newSt==='overdue') c.payments[String(g)]='overdue';
+    else c.payments[String(g)]=false; // generic unpaid
     addLog(c,'Status for '+MN[ym.m]+' '+ym.y+' changed to '+newSt);
   }
   if(val!==null&&!isNaN(val)&&val>=0){
@@ -1279,6 +1284,7 @@ function setSt(cid,g,st){
   if(st==='paid') c.payments[String(g)]=true;
   else if(st==='inactive') c.payments[String(g)]='inactive';
   else if(st==='notdue') c.payments[String(g)]='notdue';
+  else if(st==='overdue') c.payments[String(g)]='overdue';
   else c.payments[String(g)]=false;
   // Log the change
   var ym=ymOf(g);
