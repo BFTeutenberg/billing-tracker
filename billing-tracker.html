@@ -700,7 +700,7 @@ function vMonthly(){
         menuEl+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--t3);margin-bottom:5px">Amount &pound;</div>';
         menuEl+='<div style="display:flex;gap:4px;align-items:center">';
         menuEl+='<input class="amt-edit" style="flex:1;width:auto" type="text" inputmode="decimal" placeholder="'+c.mmf+'" id="ae_'+c.id+'_'+cg+'" value="'+dispAmt(c,cg)+'">';
-        menuEl+='<button class="btn sm grn" style="padding:3px 8px;font-size:11px;flex-shrink:0" onclick="saveMonthBoth('+c.id+','+cg+',\''+mid+'\')">Save</button>';
+        menuEl+='<button class="btn sm grn" style="padding:3px 8px;font-size:11px;flex-shrink:0" onclick="event.stopPropagation();event.preventDefault();saveMonthBoth('+c.id+','+cg+',\''+mid+'\')">Save</button>';
         menuEl+='</div></div>';
         menuEl+='</div>';
       }
@@ -733,7 +733,7 @@ function vMonthly(){
         if(stx!=='ft'&&stx!=='nd'){var ca=dispAmt(ic,cgx);if(ca>0){var ac=stx==='pd'?'var(--gn)':stx==='ov'?'var(--rd)':'var(--t3)';amtx='<div style="font-size:9px;font-weight:600;color:'+ac+';margin-top:2px">'+gbp(ca)+'</div>';}}
         var menux='';
         if(!isLockedx){
-          var saveBtn='<button class="btn sm grn" style="padding:3px 8px;font-size:11px" onclick="saveMonthBoth('+ic.id+','+cgx+',\''+midx+'\')">'+'Save</button>';
+          var saveBtn='<button class="btn sm grn" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();event.preventDefault();saveMonthBoth('+ic.id+','+cgx+',\''+midx+'\')">'+'Save</button>';
           menux='<div class="dd" id="'+midx+'" onclick="event.stopPropagation()">';
           menux+='<div style="padding:4px 6px;border-bottom:1px solid var(--bd);margin-bottom:4px">';
           menux+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Status</div>';
@@ -1006,15 +1006,7 @@ function dispAmt(c, g){
   var ov = getMonthAmt(c, g);
   return (ov !== null) ? ov : parseFloat(c.mmf||0);
 }
-function setDotSt(e, mid, st){
-  // Visually select a status button inside the dropdown without closing it
-  e.stopPropagation();
-  var dd = document.getElementById(mid);
-  if(!dd) return;
-  dd.querySelectorAll('.ddst').forEach(function(b){ b.classList.remove('on'); });
-  e.target.classList.add('on');
-  dd.dataset.pendingSt = st;
-}
+// setDotSt defined below (handles both dropdown and history edit modal)
 
 function saveMonthBoth(cid, g, mid){
   // Save both status and amount in one go
@@ -1048,8 +1040,10 @@ function saveMonthBoth(cid, g, mid){
   }
 
   if(!newSt && (val===null || isNaN(val))){
-    toast('Nothing to save'); return;
+    toast('Select a status or enter an amount'); return;
   }
+  // If no status selected, preserve existing status (don't wipe it)
+  // newSt being null means 'no change to status' — that's fine, amount-only save
 
   // Flush immediately to localStorage + Supabase
   try{ localStorage.setItem('bt_v4',JSON.stringify(clients)); }catch(e){}
