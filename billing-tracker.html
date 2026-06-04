@@ -1265,6 +1265,24 @@ function forceSyncToDB(){
 // Render immediately from cache, then refresh from Supabase
 render();
 loadFromSupabase();
+
+// Poll Supabase every 30 seconds for changes made on other devices
+// Only fetches if no local save is in flight, and only re-renders if data actually changed
+setInterval(function(){
+  if(SAVE_PENDING || SAVE_TIMER) return; // local edit in progress, skip
+  sbGet('clients', function(err, val){
+    if(err || !val || !Array.isArray(val) || !val.length) return;
+    // Quick change detection: compare updated_at timestamps or JSON length
+    var incoming = JSON.stringify(val);
+    var current  = JSON.stringify(clients);
+    if(incoming === current) return; // nothing changed, skip render
+    clients = migrateClients(val);
+    nextId = clients.length ? Math.max.apply(null,clients.map(function(c){return c.id;}))+1 : 1;
+    try{ localStorage.setItem('bt_v4',JSON.stringify(clients)); }catch(e){}
+    updateSyncBadge('ok');
+    render();
+  });
+}, 30000); // every 30 seconds
 </script>
 </body>
 </html>
