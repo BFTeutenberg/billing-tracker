@@ -94,6 +94,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-
 .dot.ov{background:var(--rdbg);color:var(--rd);border:1px solid #f0b0b0;}
 .dot.im{background:var(--inbg);color:var(--in);border:1px solid #d8cedf;}
 .dot.ft,.dot.nd{background:var(--sf2);color:var(--bd2);border:1px dashed var(--bd);cursor:default;}
+.dot.up{background:var(--sf2);color:var(--t3);border:1px solid var(--bd);}
 .dot.ft:hover,.dot.nd:hover{transform:none;}
 /* Monthly grid - TABLE based for reliable rendering */
 .mgwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--bd);border-radius:var(--rl);}
@@ -330,6 +331,8 @@ var DEF = [
 var clients = JSON.parse(localStorage.getItem('bt_v4')||'null') || DEF;
 function migrateClients(arr){
   arr.forEach(function(c){
+    // Ensure activityLog exists but don't auto-populate it
+    if(!c.activityLog) c.activityLog=[];
     if(!c.payType) c.payType = (c.payment||'').toLowerCase().indexOf('gocardless')>=0 ? 'GoCardless' : 'Bank Transfer';
     if(!c.invType) c.invType = 'Manual';
     if(!c.frequency) c.frequency = 'Monthly';
@@ -423,10 +426,13 @@ function dotState(c,g){
   if(v==='notdue') return 'nd';
   if(g>CG) return 'ft';
   if(!isBillingMonth(c,g)) return 'nd';
-  return 'ov';
+  // Only show red overdue dot if the due date has actually passed today
+  if(g===CG && TD < (c.date||1)) return 'up'; // current month, not yet due
+  if(g===CG) return 'ov'; // current month, past due date
+  return 'up'; // past months always neutral (not red) - use edit to correct
 }
 
-var VIEW='dashboard', SELID=null, MODAL=false, EDITC=null, SHOWINACT=false;
+var VIEW='dashboard', SELID=null, MODAL=false, EDITC=null, SHOWINACT=false, SHOWINACT_M=false;
 var VIEWS = ['dashboard','clients','monthly','overdue','settings'];
 
 function go(v){
@@ -528,7 +534,7 @@ function vClients(){
       +'<div class="ddb">'+c.date+'</div>'
       +'<div><div class="cn">'+esc(c.name)+' '+inact+'</div>'
       +'<div class="cs">'+esc(c.contact)+'</div>'
-      +'<div class="cs" style="margin-top:1px">'+freqBadge(c)+(c.email?' &bull; '+esc(c.email):'')+'</div>'
+      +'<div class="cs" style="margin-top:1px">'+freqBadge(c)+' '+payBadge(c)+' '+invBadge(c)+'</div>'
       +'</div>'
       +'<div class="cf">'+gbp(c.mmf)+'</div>'
       +'<svg style="width:12px;height:12px;color:var(--t3);flex-shrink:0" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3l4 4-4 4"/></svg>'
@@ -557,17 +563,17 @@ function vDetail(){
     var ym=ymOf(g);
     var st=dotState(c,g);
     var fut=g>CG, cur=g===CG;
-    // Skip not-due and not-billed rows
     if(st==='nd'||st==='im') continue;
-    // Skip zero-amount paid rows
     var rowAmt=dispAmt(c,g);
     if(st==='pd'&&rowAmt===0) continue;
-    var slbl={pd:'Paid',ov:'Overdue',ft:'Future'}[st]||'Awaiting';
+    var slbl={pd:'Paid',ov:'Overdue',up:'Unpaid',ft:'Future'}[st]||'Awaiting';
     var amtTxt=gbp(rowAmt);
     var amtCol=st==='pd'?'var(--gn)':st==='ov'?'var(--rd)':'var(--t2)';
-    var btns='';
-    if(!fut){
-      btns='<button class="sbtn '+(st==='pd'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'paid\')">&#10003;</button>'
+    var actionCol='';
+    if(st==='pd'){
+      actionCol='<button class="btn sm" style="font-size:11px;padding:3px 8px" onclick="openHistEdit('+c.id+','+g+')">Edit</button>';
+    } else if(!fut){
+      actionCol='<button class="sbtn '+(st==='pd'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'paid\')">&#10003;</button>'
         +'<button class="sbtn '+(st==='ov'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'overdue\')">!</button>'
         +'<button class="sbtn '+(st==='im'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'inactive\')">&mdash;</button>'
         +'<button class="sbtn '+(st==='nd'?'on':'')+'" onclick="setSt('+c.id+','+g+',\'notdue\')">&#9633;</button>';
@@ -577,7 +583,7 @@ function vDetail(){
       +'<div class="hm" style="'+(cur?'color:var(--gn)':'')+'">'+MN[ym.m]+' '+ym.y+'</div>'
       +'<div class="hs"><span class="sd" style="background:'+DCOL[st]+'"></span>'+slbl+(cur?' (now)':'')+'</div>'
       +'<div class="ha" style="color:'+amtCol+'">'+amtTxt+'</div>'
-      +'<div style="display:flex;gap:4px">'+btns+'</div>'
+      +'<div style="display:flex;gap:4px">'+actionCol+'</div>'
       +'</div>';
   }
   var iab=!c.active?'<div class="ibanner"><svg style="width:14px;height:14px;flex-shrink:0" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5.5"/><path d="M7 4v3.5"/><circle cx="7" cy="10" r="0.6" fill="currentColor"/></svg>This client is marked as inactive</div>':'';
@@ -609,7 +615,8 @@ function vDetail(){
 
 // ── MONTHLY VIEW (TABLE-BASED) ──
 function vMonthly(){
-  var visible=sortC(SHOWINACT?clients:clients.filter(function(c){return c.active;}));
+  var visible=sortC(SHOWINACT_M?clients:clients.filter(function(c){return c.active;}));
+  var allClients=sortC(clients); // all clients for invoice total row
   // Columns: current month first (leftmost), scrolling right goes back in time to Apr 2025
   var cols=[];
   for(var g=CG;g>=CG-14;g--) cols.push(g);
@@ -650,19 +657,22 @@ function vMonthly(){
   for(var ri=0;ri<visible.length;ri++){
     var c=visible[ri];
     tbody+='<tr>'
-      +'<td class="namecol" style="cursor:pointer" onclick="openC('+c.id+')">'
+      +'<td class="namecol" style="cursor:pointer" onclick="openC('+c.id+')">'  
       +'<div style="font-size:12px;font-weight:500;color:var(--tx)">'+esc(c.name)+'</div>'
       +'<div style="font-size:10px;color:var(--t3)">'+esc(c.contact)+'</div>'
+      +'<div style="font-size:10px;margin-top:2px">'+payBadge(c)+' '+invBadge(c)+'</div>'
       +'<div style="font-size:10px;color:var(--t3);margin-top:1px">'+freqBadge(c)+' &bull; Due '+c.date+ord(c.date)+'</div>'
       +'</td>';
     for(var ci2=0;ci2<cols.length;ci2++){
       var cg=cols[ci2];
       var st=dotState(c,cg);
       var lbl=DLBL[st]||'';
-      var isFut=(st==='ft');  // only true future months are locked
+      var isFut=(st==='ft');  // true future months are always locked
+      var isLocked=isFut||(st==='pd');  // paid months locked in monthly view — edit via client screen
       var mid='dd'+c.id+'x'+cg;
-      var clickStr=isFut?'':' onclick="openDot(event,\''+mid+'\')"';
-      var dotEl='<span class="dot '+st+'" title="'+(isFut?DTIT[st]:'Click to change')+'"'+clickStr+'>'+lbl+'</span>';
+      var clickStr=isLocked?'':' onclick="openDot(event,\''+mid+'\')"';
+      var lockTitle=st==='pd'?'Paid — edit via client record':DTIT[st];
+      var dotEl='<span class="dot '+st+'" title="'+(isLocked?lockTitle:'Click to change')+'"'+clickStr+'>'+lbl+'</span>';
       var amtTxt='';
       if(st!=='ft'&&st!=='nd'){  // only show amount for active billing months
         var cellAmt=dispAmt(c,cg);
@@ -672,7 +682,7 @@ function vMonthly(){
         }
       }
       var menuEl='';
-      if(!isFut){
+      if(!isLocked){
         var pendingId='pd_'+c.id+'_'+cg;
         menuEl='<div class="dd" id="'+mid+'" onclick="event.stopPropagation()">';
         menuEl+='<div style="padding:4px 6px 6px;border-bottom:1px solid var(--bd);margin-bottom:4px">';
@@ -696,26 +706,36 @@ function vMonthly(){
     tbody+='</tr>';
   }
 
-  // Totals footer row
-  var tfoot='<tr style="background:var(--sf2)">'
-    +'<td class="namecol" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--t3);border-top:2px solid var(--bd2)">Totals</td>';
+  // Totals footer rows
+  // Row 1: active clients paid/outstanding
+  var tfoot='<tr style="background:var(--sf2)">'    +'<td class="namecol" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gn);border-top:2px solid var(--bd2)">Paid</td>';
   for(var ci=0;ci<cols.length;ci++){
     var g=cols[ci];
     var isCur=(g===CG);
     var tot=colTotals[g]||0;
     var paid=colPaid[g]||0;
     var outstanding=tot-paid;
-    tfoot+='<td style="padding:5px 3px;border-right:1px solid var(--bd);border-top:2px solid var(--bd2);'+(isCur?'background:#eef6f2;':'')+'text-align:center">'
-      +'<div style="font-size:9px;font-weight:700;font-family:DM Mono,monospace;color:var(--gn);line-height:1.4">'+gbp(paid)+'</div>'
-      +(outstanding>0?'<div style="font-size:8px;font-family:DM Mono,monospace;color:var(--rd);line-height:1">&minus;'+gbp(outstanding)+'</div>':'')
-      +'</td>';
+    tfoot+='<td style="padding:5px 3px;border-right:1px solid var(--bd);border-top:2px solid var(--bd2);'+(isCur?'background:#eef6f2;':'')+'text-align:center">'      +'<div style="font-size:9px;font-weight:700;font-family:DM Mono,monospace;color:var(--gn);line-height:1.4">'+gbp(paid)+'</div>'      +(outstanding>0?'<div style="font-size:8px;font-family:DM Mono,monospace;color:var(--rd);line-height:1">&minus;'+gbp(outstanding)+'</div>':'')      +'</td>';
+  }
+  tfoot+='</tr>';
+  // Row 2: invoice total (all active clients expected for that month)
+  tfoot+='<tr style="background:#f8fef9">'    +'<td class="namecol" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--bl);border-bottom:1px solid var(--bd)">Invoiced</td>';
+  for(var ci2=0;ci2<cols.length;ci2++){
+    var cg2=cols[ci2];
+    var isCur2=(cg2===CG);
+    var invTot=0;
+    allClients.forEach(function(c){
+      var st2=dotState(c,cg2);
+      if(st2!=='nd'&&st2!=='ft') invTot+=dispAmt(c,cg2);
+    });
+    tfoot+='<td style="padding:5px 3px;border-right:1px solid var(--bd);border-bottom:1px solid var(--bd);'+(isCur2?'background:#f0fbf5;':'')+'text-align:center">'      +'<div style="font-size:9px;font-weight:700;font-family:DM Mono,monospace;color:var(--bl);line-height:1.4">'+(invTot>0?gbp(invTot):'')+'</div>'      +'</td>';
   }
   tfoot+='</tr>';
 
   return '<div class="ph">'
     +'<div><div class="pt">Monthly view</div><div class="ps">Current month left &bull; scroll right for history to Apr 2025</div></div>'
     +'<div class="pa">'
-    +'<label class="si"><input type="checkbox" '+(SHOWINACT?'checked':'')+' onchange="SHOWINACT=this.checked;render()"> Inactive</label>'
+    +'<button class="btn sm '+(SHOWINACT_M?'pri':'')+' " onclick="SHOWINACT_M=!SHOWINACT_M;render()">'+(SHOWINACT_M?'Hide':'Show')+' inactive</button>'
     +'<button class="btn grn sm" onclick="rolloverMonth()">&#43; Rollover to '+nextLabel+'</button>'
     +'<button class="btn sm" onclick="exportCSV()">CSV</button>'
     +'</div></div>'
@@ -723,6 +743,7 @@ function vMonthly(){
     +'<div class="li"><span class="dot pd" style="width:16px;height:16px;font-size:9px">&#10003;</span> Paid</div>'
     +'<div class="li"><span class="dot ov" style="width:16px;height:16px;font-size:9px">!</span> Overdue</div>'
     +'<div class="li"><span class="dot im" style="width:16px;height:16px;font-size:9px">&mdash;</span> Not billed</div>'
+    +'<div class="li"><span class="dot up" style="width:16px;height:16px"></span> Unpaid</div>'
     +'<div class="li"><span class="dot nd" style="width:16px;height:16px"></span> Not due this month</div>'
     +'<div class="li" style="margin-left:auto;font-size:11px;color:var(--t3)">Totals row: green=paid, red=outstanding</div>'
     +'</div>'
@@ -741,6 +762,7 @@ function rolloverMonth(){
   var nextG=CG+1;
   var nextYM=ymOf(nextG);
   var nextLabel=MN[nextYM.m]+' '+nextYM.y;
+  if(!confirm('Create new payment entries for '+nextLabel+'? Existing data will not be overwritten.')) return;
   var active=clients.filter(function(c){return c.active;});
   var count=0;
   active.forEach(function(c){
@@ -916,10 +938,8 @@ function vModal(){
     +'<div class="fr"><label>Notes</label>'
     +'<textarea id="f-notes" placeholder="e.g. Quarterly billing Jan, Apr, Jul, Oct">'+(e?esc(c.notes||''):'')+'</textarea></div>'
     // Active as separate checkbox+label, not nested
-    +'<div class="fr" style="display:flex;align-items:center;gap:10px;padding:4px 0">'
-    +'<input type="checkbox" id="f-active" '+(activeChecked?'checked':'')+' style="width:18px;height:18px;cursor:pointer;flex-shrink:0">'
-    +'<label for="f-active" style="font-size:13px;font-weight:400;color:var(--tx);cursor:pointer;text-transform:none;letter-spacing:0">Active client</label>'
-    +'</div>'
+    +'<div class="fr"><label>Client status</label>'
+    +'<select id="f-active"><option value="yes" '+(activeChecked?'selected':'')+'>Active</option><option value="no" '+(!activeChecked?'selected':'')+'>Inactive</option></select></div>'
     +'<div class="fac">'
     +'<button class="btn" onclick="closeModal()">Cancel</button>'
     +'<button class="btn pri" onclick="saveC()">'+(e?'Save changes':'Add client')+'</button>'
@@ -1046,6 +1066,102 @@ function addLogEntry(cid){
   save(); toast('Note added'); render();
 }
 
+// ── HISTORY EDIT MODAL ──
+var HIST_EDIT = null; // {cid, g}
+
+function openHistEdit(cid, g){
+  HIST_EDIT = {cid:cid, g:g};
+  var c = clients.find(function(x){return x.id===cid;});
+  var ym = ymOf(g);
+  var st = dotState(c,g);
+  var amt = dispAmt(c,g);
+  var html = '<div class="mbg" id="he-bg">'
+    +'<div class="modal" onclick="event.stopPropagation()">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">'
+    +'<div class="mtit" style="margin:0">Edit '+MN[ym.m]+' '+ym.y+'</div>'
+    +'<button class="btn sm" onclick="closeHistEdit()">&#10005;</button></div>'
+    +'<div class="fr"><label>Status</label>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">'
+    +'<button class="sbtn '+(st==='pd'?'on':'')+' ddst" onclick="setDotSt(event,\'he-status\',\'paid\')" id="he-pd">&#10003; Paid</button>'
+    +'<button class="sbtn '+(st==='ov'?'on':'')+' ddst" onclick="setDotSt(event,\'he-status\',\'overdue\')" id="he-ov">! Overdue</button>'
+    +'<button class="sbtn '+(st==='im'?'on':'')+' ddst" onclick="setDotSt(event,\'he-status\',\'inactive\')" id="he-im">Not billed</button>'
+    +'<button class="sbtn '+(st==='nd'?'on':'')+' ddst" onclick="setDotSt(event,\'he-status\',\'notdue\')" id="he-nd">Not due</button>'
+    +'</div><div id="he-status" data-pending-st=""></div></div>'
+    +'<div class="fr"><label>Amount &pound;</label>'
+    +'<input type="text" inputmode="decimal" id="he-amt" value="'+amt+'" style="width:100%;padding:9px 10px;border:1px solid var(--bd2);border-radius:var(--r);font-size:14px;font-family:DM Sans,sans-serif;background:var(--bg);color:var(--tx)"></div>'
+    +'<div class="fac">'
+    +'<button class="btn" onclick="closeHistEdit()">Cancel</button>'
+    +'<button class="btn pri" onclick="saveHistEdit()">Save changes</button>'
+    +'</div></div></div>';
+  document.getElementById('main').insertAdjacentHTML('beforeend', html);
+  var bg = document.getElementById('he-bg');
+  if(bg) bg.addEventListener('click', function(e){ if(e.target===bg) closeHistEdit(); });
+}
+
+function closeHistEdit(){
+  var el = document.getElementById('he-bg');
+  if(el) el.remove();
+  HIST_EDIT = null;
+}
+
+function saveHistEdit(){
+  if(!HIST_EDIT) return;
+  var c = clients.find(function(x){return x.id===HIST_EDIT.cid;});
+  if(!c) return;
+  var g = HIST_EDIT.g;
+  // Read status
+  var statusEl = document.getElementById('he-status');
+  var newSt = statusEl ? statusEl.dataset.pendingSt : '';
+  // Read amount
+  var amtEl = document.getElementById('he-amt');
+  var raw = (amtEl ? amtEl.value : '').replace(/[^0-9.]/g,'');
+  var val = raw==='' ? null : parseFloat(raw);
+  var ym = ymOf(g);
+  if(newSt){
+    if(newSt==='paid') c.payments[String(g)]=true;
+    else if(newSt==='inactive') c.payments[String(g)]='inactive';
+    else if(newSt==='notdue') c.payments[String(g)]='notdue';
+    else c.payments[String(g)]=false;
+    addLog(c,'Status for '+MN[ym.m]+' '+ym.y+' changed to '+newSt);
+  }
+  if(val!==null&&!isNaN(val)&&val>=0){
+    if(!c.monthAmounts) c.monthAmounts={};
+    c.monthAmounts[String(g)]=val;
+    addLog(c,'Amount for '+MN[ym.m]+' '+ym.y+' set to '+gbp(val));
+  }
+  if(!newSt&&(val===null||isNaN(val))){ toast('Nothing to save'); return; }
+  try{ localStorage.setItem('bt_v4',JSON.stringify(clients)); }catch(e){}
+  if(SAVE_TIMER){ clearTimeout(SAVE_TIMER); SAVE_TIMER=null; }
+  SAVE_PENDING=true;
+  updateSyncBadge('saving');
+  sbSet('clients',clients,function(err){ SAVE_PENDING=false; updateSyncBadge(err?'error':'ok'); });
+  toast('Saved'); closeHistEdit(); render();
+}
+
+// setDotSt needs to work for both the monthly dropdown and the history edit modal
+// Override to handle both cases
+var _origSetDotSt = setDotSt;
+function setDotSt(e, mid, st){
+  e.stopPropagation();
+  // For history edit modal, target is the status div
+  var statusDiv = document.getElementById('he-status');
+  if(mid==='he-status' && statusDiv){
+    // Highlight buttons in modal
+    ['he-pd','he-ov','he-im','he-nd'].forEach(function(id){
+      var b=document.getElementById(id); if(b) b.classList.remove('on');
+    });
+    e.target.classList.add('on');
+    statusDiv.dataset.pendingSt = st;
+    return;
+  }
+  // Original monthly dropdown behaviour
+  var dd = document.getElementById(mid);
+  if(!dd) return;
+  dd.querySelectorAll('.ddst').forEach(function(b){ b.classList.remove('on'); });
+  e.target.classList.add('on');
+  dd.dataset.pendingSt = st;
+}
+
 // ── ACTIONS ──
 function openC(id){ SELID=id; VIEW='client_detail'; render(); }
 function openAdd(){ MODAL=true; EDITC=null; render(); }
@@ -1073,7 +1189,8 @@ function saveC(){
   var email=(document.getElementById('f-email').value||'').trim();
   var phone=(document.getElementById('f-phone').value||'').trim();
   var notes=(document.getElementById('f-notes').value||'').trim();
-  var active=document.getElementById('f-active').checked;
+  var activeEl=document.getElementById('f-active');
+  var active=activeEl ? activeEl.value==='yes' : true;
   if(!name){document.getElementById('f-name').focus();return;}
   if(EDITC){
     var i=clients.findIndex(function(c){return c.id===EDITC.id;});
