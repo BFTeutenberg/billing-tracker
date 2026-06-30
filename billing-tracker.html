@@ -42,6 +42,8 @@ body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-siz
 .bni.on{color:var(--gn);}
 /* Main */
 .main{margin-left:220px;padding:2rem;min-height:100vh;}
+.monthly-sticky-top{position:sticky;top:0;background:var(--bg);z-index:15;padding-bottom:.75rem;margin-bottom:.5rem;}
+.mgwrap-scroll{max-height:calc(100vh - 340px);overflow-y:auto;}
 .ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px;}
 .pt{font-size:22px;font-weight:600;letter-spacing:-.03em;}
 .ps{font-size:13px;color:var(--t2);margin-top:2px;}
@@ -442,7 +444,7 @@ function dotState(c,g){
   return 'up'; // past months — neutral until explicitly set
 }
 
-var VIEW='dashboard', SELID=null, MODAL=false, EDITC=null, SHOWINACT=false, SHOWINACT_M=false;
+var VIEW='dashboard', SELID=null, MODAL=false, EDITC=null, SHOWINACT=false, SHOWINACT_M=true;
 var VIEWS = ['dashboard','clients','monthly','overdue','settings'];
 
 function go(v){
@@ -487,9 +489,15 @@ function render(){
 // ── DASHBOARD ──
 function vDash(){
   var active=clients.filter(function(c){return c.active;});
-  var mrr=active.reduce(function(s,c){return s+parseFloat(c.mmf||0);},0);
+  // True monthly-equivalent value: divide each client's fee by their billing
+  // frequency in months (e.g. a £600 quarterly fee = £200/month equivalent)
+  var mrr=active.reduce(function(s,c){
+    var freqMonths=FREQMO[c.frequency]||1;
+    if(freqMonths<=0) return s; // one-off/weekly clients excluded from MRR
+    return s+(parseFloat(c.mmf||0)/freqMonths);
+  },0);
   var pg=String(CG);
-  var paidAmt=active.filter(function(c){return c.payments[pg]===true;}).reduce(function(s,c){return s+parseFloat(c.mmf||0);},0);
+  var paidAmt=active.filter(function(c){return c.payments[pg]===true;}).reduce(function(s,c){return s+dispAmt(c,CG);},0);
   var od=sortC(active.filter(isOverdueToday));
   var odAmt=od.reduce(function(s,c){return s+parseFloat(c.mmf||0);},0);
   var rows=od.slice(0,6).map(function(c){
@@ -525,7 +533,7 @@ function vDash(){
     +'<div class="pa"><button class="btn sm" onclick="exportCSV()">Export CSV</button></div></div>'
     +'<div class="mets">'
     +'<div class="met"><div class="ml">Active clients</div><div class="mv">'+active.length+'</div><div class="ms">'+clients.filter(function(c){return !c.active;}).length+' inactive</div></div>'
-    +'<div class="met"><div class="ml">Monthly value</div><div class="mv gn">'+gbp(mrr)+'</div></div>'
+    +'<div class="met"><div class="ml">Monthly value</div><div class="mv gn">'+gbp(mrr)+'</div><div class="ms">Equivalent, all frequencies</div></div>'
     +'<div class="met"><div class="ml">Paid this month</div><div class="mv gn">'+gbp(paidAmt)+'</div></div>'
     +'<div class="met"><div class="ml">Overdue now</div><div class="mv '+(od.length?'rd':'')+"'"+'>'+gbp(odAmt)+'</div><div class="ms">'+od.length+' clients</div></div>'
     +'</div>'
@@ -636,8 +644,8 @@ function vMonthly(){
   var cols=[];
   for(var g=maxFutureG;g>=CG-14;g--) cols.push(g);
 
-  // Next-month label for rollover button
-  var nextG=CG+1;
+  // Next-month label for rollover button — month AFTER the furthest one already rolled in
+  var nextG=maxFutureG+1;
   var nextYM=ymOf(nextG);
   var nextLabel=MN[nextYM.m]+' '+nextYM.y;
 
@@ -792,14 +800,15 @@ function vMonthly(){
   }
   tfoot+='</tr>';
 
-  return '<div class="ph">'
+  return '<div class="monthly-sticky-top">'
+    +'<div class="ph" style="margin-bottom:.75rem">'
     +'<div><div class="pt">Monthly view</div><div class="ps">Current month left &bull; scroll right for history to Apr 2025</div></div>'
     +'<div class="pa">'
     +'<button class="btn sm '+(SHOWINACT_M?'pri':'')+' " onclick="SHOWINACT_M=!SHOWINACT_M;render()">'+(SHOWINACT_M?'Hide':'Show')+' inactive</button>'
     +'<button class="btn grn sm" onclick="rolloverMonth()">&#43; Rollover to '+nextLabel+'</button>'
     +'<button class="btn sm" onclick="exportCSV()">CSV</button>'
     +'</div></div>'
-    +'<div class="legend">'
+    +'<div class="legend" style="margin-bottom:0">'
     +'<div class="li"><span class="dot pd" style="width:16px;height:16px;font-size:9px">&#10003;</span> Paid</div>'
     +'<div class="li"><span class="dot ov" style="width:16px;height:16px;font-size:9px">!</span> Overdue</div>'
     +'<div class="li"><span class="dot im" style="width:16px;height:16px;font-size:9px">&mdash;</span> Not billed</div>'
@@ -807,8 +816,8 @@ function vMonthly(){
     +'<div class="li"><span class="dot mn" style="width:16px;height:16px;font-size:9px">&mdash;</span> Not due (manual)</div>'
     +'<div class="li"><span class="dot nd" style="width:16px;height:16px"></span> Not due (auto)</div>'
     +'<div class="li" style="margin-left:auto;font-size:11px;color:var(--t3)">Totals row: green=paid, red=outstanding</div>'
-    +'</div>'
-    +'<div class="mgwrap" id="mgwrap">'
+    +'</div></div>'
+    +'<div class="mgwrap mgwrap-scroll" id="mgwrap">'
     +'<table class="mgtable" id="mgtable"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody><tfoot>'+tfoot+'</tfoot></table>'
     +'</div>';
 }
@@ -820,7 +829,15 @@ function scrollToToday(){
 }
 
 function rolloverMonth(){
-  var nextG=CG+1;
+  // Find the furthest month any client already has data for, roll into the one after that
+  var maxG=CG;
+  clients.forEach(function(c){
+    Object.keys(c.payments).forEach(function(k){
+      var gi=parseInt(k);
+      if(gi>maxG) maxG=gi;
+    });
+  });
+  var nextG=maxG+1;
   var nextYM=ymOf(nextG);
   var nextLabel=MN[nextYM.m]+' '+nextYM.y;
   // Use an in-app confirmation instead of native confirm() — native dialogs
