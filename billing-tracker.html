@@ -429,7 +429,13 @@ function dotState(c,g){
   if(v==='inactive') return 'im';
   if(v==='notdue') return 'mn'; // manually set not-due — editable
   if(v==='overdue') return 'ov'; // explicitly marked overdue
-  if(g>CG) return 'ft';
+  // If a real entry exists for a future month (e.g. via rollover), treat it as
+  // editable 'up' rather than locking it as future — only TRUE future with no
+  // entry at all stays locked
+  if(g>CG){
+    if(v!==undefined) return 'up'; // rolled-over entry exists — editable
+    return 'ft'; // genuinely future, no entry yet — locked
+  }
   if(!isBillingMonth(c,g)) return 'nd'; // auto not-due from billing frequency — locked
   if(g===CG && TD < (c.date||1)) return 'up'; // current month, not yet due
   if(g===CG) return 'ov'; // current month past due date
@@ -562,8 +568,12 @@ function vDetail(){
     return s+(c.payments[gk]===true?dispAmt(c,parseInt(gk)):0);
   },0);
   var rows='';
-  var rows='';
-  for(var g=CG;g>=CG-14;g--){
+  var maxFutureG=CG;
+  Object.keys(c.payments).forEach(function(k){
+    var gi=parseInt(k);
+    if(gi>maxFutureG) maxFutureG=gi;
+  });
+  for(var g=maxFutureG;g>=CG-14;g--){
     var ym=ymOf(g);
     var st=dotState(c,g);
     if(st==='nd'||st==='ft') continue;
@@ -614,9 +624,17 @@ function vMonthly(){
   var inactiveClients=sortC(clients.filter(function(c){return !c.active;}));
   var visible=activeClients;
   var allClients=sortC(clients);
-  // Columns: current month first (leftmost), scrolling right goes back in time to Apr 2025
+  // Columns: current month leftmost by default; extend forward if any client
+  // has a rolled-over entry for a future month, back to Apr 2025
+  var maxFutureG = CG;
+  allClients.forEach(function(c){
+    Object.keys(c.payments).forEach(function(k){
+      var gi = parseInt(k);
+      if(gi > maxFutureG) maxFutureG = gi;
+    });
+  });
   var cols=[];
-  for(var g=CG;g>=CG-14;g--) cols.push(g);
+  for(var g=maxFutureG;g>=CG-14;g--) cols.push(g);
 
   // Next-month label for rollover button
   var nextG=CG+1;
@@ -805,24 +823,54 @@ function rolloverMonth(){
   var nextG=CG+1;
   var nextYM=ymOf(nextG);
   var nextLabel=MN[nextYM.m]+' '+nextYM.y;
-  if(!confirm('Create new payment entries for '+nextLabel+'? Existing data will not be overwritten.')) return;
+  // Use an in-app confirmation instead of native confirm() — native dialogs
+  // are unreliable inside iframes on mobile (often auto-dismissed or blocked)
+  showRolloverConfirm(nextG, nextLabel);
+}
+
+function showRolloverConfirm(nextG, nextLabel){
+  var html = '<div class="mbg" id="rc-bg">'
+    +'<div class="modal" onclick="event.stopPropagation()" style="max-width:360px">'
+    +'<div class="mtit">Rollover to '+nextLabel+'</div>'
+    +'<div style="font-size:13px;color:var(--t2);margin-bottom:1.25rem;line-height:1.5">This creates a new unpaid entry for every active client who bills in '+nextLabel+'. Existing entries will not be changed.</div>'
+    +'<div class="fac">'
+    +'<button class="btn" onclick="closeRolloverConfirm()">Cancel</button>'
+    +'<button class="btn grn pri" onclick="doRollover('+nextG+',\''+nextLabel+'\')">Create entries</button>'
+    +'</div></div></div>';
+  document.getElementById('main').insertAdjacentHTML('beforeend', html);
+  var bg=document.getElementById('rc-bg');
+  if(bg) bg.addEventListener('click', function(e){ if(e.target===bg) closeRolloverConfirm(); });
+}
+
+function closeRolloverConfirm(){
+  var el=document.getElementById('rc-bg');
+  if(el) el.remove();
+}
+
+function doRollover(nextG, nextLabel){
+  closeRolloverConfirm();
   var active=clients.filter(function(c){return c.active;});
   var count=0;
   active.forEach(function(c){
-    // Only process clients that bill in the next month
     if(!isBillingMonth(c,nextG)) return;
     var nextKey=String(nextG);
-    // Don't overwrite if already set
     if(c.payments[nextKey]!==undefined) return;
-    // Copy fee from current month (nothing to copy other than creating the entry as unpaid)
     c.payments[nextKey]=false;
     count++;
   });
   if(count===0){
-    toast('Nothing to roll over - all entries for '+nextLabel+' already exist');
+    toast('Nothing to roll over — all entries for '+nextLabel+' already exist');
     return;
   }
-  save();
+  // Flush immediately rather than relying on debounce
+  try{ localStorage.setItem('bt_v4',JSON.stringify(clients)); }catch(e){}
+  if(SAVE_TIMER){ clearTimeout(SAVE_TIMER); SAVE_TIMER=null; }
+  SAVE_PENDING=true;
+  updateSyncBadge('saving');
+  sbSet('clients', clients, function(err){
+    SAVE_PENDING=false;
+    updateSyncBadge(err?'error':'ok');
+  });
   toast('Rolled over '+count+' client'+(count===1?'':'s')+' into '+nextLabel);
   render();
 }
@@ -931,7 +979,20 @@ function removeOpt(key,i){
   render();
 }
 function resetOpts(){
-  if(!confirm('Reset all options to defaults?')) return;
+  var html='<div class="mbg" id="ro-bg"><div class="modal" onclick="event.stopPropagation()" style="max-width:340px">'
+    +'<div class="mtit">Reset options?</div>'
+    +'<div style="font-size:13px;color:var(--t2);margin-bottom:1.25rem">This resets payment types, invoice types and frequencies back to the defaults. Any custom options you added will be removed.</div>'
+    +'<div class="fac">'
+    +'<button class="btn" onclick="document.getElementById(\'ro-bg\').remove()">Cancel</button>'
+    +'<button class="btn dng" style="background:var(--rd);color:#fff;border-color:var(--rd)" onclick="doResetOpts()">Reset</button>'
+    +'</div></div></div>';
+  document.getElementById('main').insertAdjacentHTML('beforeend', html);
+  var bg=document.getElementById('ro-bg');
+  if(bg) bg.addEventListener('click', function(e){ if(e.target===bg) bg.remove(); });
+}
+
+function doResetOpts(){
+  var el=document.getElementById('ro-bg'); if(el) el.remove();
   OPTS = JSON.parse(JSON.stringify(DEFAULT_OPTS));
   saveOpts();
   toast('Options reset');
@@ -1278,7 +1339,22 @@ function saveC(){
 }
 
 function delC(id){
-  if(!confirm('Delete this client? This cannot be undone.')) return;
+  var c=clients.find(function(x){return x.id===id;});
+  if(!c) return;
+  var html='<div class="mbg" id="dc-bg"><div class="modal" onclick="event.stopPropagation()" style="max-width:340px">'
+    +'<div class="mtit">Delete client?</div>'
+    +'<div style="font-size:13px;color:var(--t2);margin-bottom:1.25rem">Delete <strong>'+esc(c.name)+'</strong> and all their payment history? This cannot be undone.</div>'
+    +'<div class="fac">'
+    +'<button class="btn" onclick="document.getElementById(\'dc-bg\').remove()">Cancel</button>'
+    +'<button class="btn dng" style="background:var(--rd);color:#fff;border-color:var(--rd)" onclick="doDeleteClient('+id+')">Delete</button>'
+    +'</div></div></div>';
+  document.getElementById('main').insertAdjacentHTML('beforeend', html);
+  var bg=document.getElementById('dc-bg');
+  if(bg) bg.addEventListener('click', function(e){ if(e.target===bg) bg.remove(); });
+}
+
+function doDeleteClient(id){
+  var el=document.getElementById('dc-bg'); if(el) el.remove();
   clients=clients.filter(function(c){return c.id!==id;});
   save(); toast('Client deleted'); VIEW='clients'; render();
 }
