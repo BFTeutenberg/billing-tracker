@@ -146,6 +146,12 @@ body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-siz
 .on2{font-size:14px;font-weight:600;}
 .om{font-size:12px;color:var(--t3);margin-top:2px;}
 .oa{font-size:17px;font-weight:700;font-family:Space Grotesk,sans-serif;color:var(--rd);}
+/* One row per outstanding month inside an overdue card. */
+.omlist{margin-top:10px;padding-top:8px;border-top:1px solid var(--bd);display:flex;flex-direction:column;gap:5px;}
+.omrow{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:8px;}
+.omlbl{font-size:12px;font-weight:600;color:var(--t2);font-family:Space Grotesk,sans-serif;}
+.omamt{font-size:13px;font-weight:700;color:var(--rd);font-family:Space Grotesk,sans-serif;}
+.omrow .btn{font-size:11px;padding:3px 8px;}
 .oact{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center;flex-shrink:0;}
 /* Dot dropdown */
 /* A .dd lives inside a <td>. The sticky header (z6), name column (z5) and
@@ -227,6 +233,9 @@ td:has(.dd.open){position:relative;z-index:100;}
   .ha{font-size:12px;}
   .mets{grid-template-columns:1fr 1fr;} .mv{font-size:20px;}
   .oc{flex-wrap:wrap;} .toast{bottom:72px;}
+  .omrow{grid-template-columns:1fr auto auto auto;gap:5px;}
+  .omlbl{font-size:11px;} .omamt{font-size:12px;}
+  .omrow .btn{font-size:10px;padding:3px 6px;}
   .pt{font-size:18px;}
   /* Phone: compact table box that fits a vertical screen without page scrolling.
      Header/legend/buttons stay above; the box itself scrolls in both directions. */
@@ -368,6 +377,38 @@ function isOverdueToday(c){
   if(v==='overdue') return true;
   if(!isDueThisMonth(c)) return false;
   return TD >= (c.date||1);
+}
+
+// Every outstanding month for a client, not just the current one.
+// Returns [{g, amt}] oldest first.
+//
+// A month counts as outstanding only when it is a real billing month AND is
+// genuinely unpaid. Deliberately NOT counted: blank historical months. Most
+// clients only have a handful of months explicitly recorded, so treating every
+// gap as a debt would invent months of arrears that were never real. Blank past
+// months stay neutral here exactly as they do on the monthly grid.
+function outstandingMonths(c){
+  if(!c.active) return [];
+  var out=[];
+  for(var g=CG-14; g<=CG; g++){
+    if(!isBillingMonth(c,g)) continue;
+    var v=c.payments[String(g)];
+    if(v===true||v==='inactive'||v==='notdue') continue; // settled or not billed
+    if(v==='overdue'){ out.push({g:g, amt:dispAmt(c,g)}); continue; }
+    if(g===CG){
+      // Current month: only overdue once the due day has passed
+      if(TD >= (c.date||1)) out.push({g:g, amt:dispAmt(c,g)});
+      continue;
+    }
+    // Past month: only if an entry exists and is explicitly unpaid (false).
+    // Absent entries are treated as "no record", not as debt.
+    if(v===false) out.push({g:g, amt:dispAmt(c,g)});
+  }
+  return out;
+}
+
+function outstandingTotal(c){
+  return outstandingMonths(c).reduce(function(s,o){ return s+o.amt; },0);
 }
 
 // ── DEFAULT CLIENT DATA ──
@@ -559,14 +600,23 @@ function vDash(){
   },0);
   var pg=String(CG);
   var paidAmt=active.filter(function(c){return c.payments[pg]===true;}).reduce(function(s,c){return s+dispAmt(c,CG);},0);
-  var od=sortC(active.filter(isOverdueToday));
-  var odAmt=od.reduce(function(s,c){return s+parseFloat(c.mmf||0);},0);
-  var rows=od.slice(0,6).map(function(c){
+  // Match the Overdue screen: count every outstanding month, not just this one.
+  var od=[];
+  sortC(active).forEach(function(c){
+    var months=outstandingMonths(c);
+    if(months.length) od.push({c:c, months:months, total:outstandingTotal(c)});
+  });
+  var odAmt=od.reduce(function(s,x){return s+x.total;},0);
+  var rows=od.slice(0,6).map(function(x){
+    var c=x.c, many=x.months.length>1;
+    var oldest=x.months[0], oy=ymOf(oldest.g);
     return '<div class="oc" style="cursor:pointer" onclick="openC('+c.id+')">'
       +'<div style="flex:1"><div class="on2">'+esc(c.name)+'</div>'
-      +'<div class="om">'+esc(c.contact)+' &bull; Due '+c.date+ord(c.date)+' &bull; '+payBadge(c)+'</div></div>'
-      +'<div class="oact"><div class="oa">'+gbp(c.mmf)+'</div>'
-      +'<button class="btn grn sm" onclick="event.stopPropagation();qPay('+c.id+')">Mark paid</button></div></div>';
+      +'<div class="om">'+esc(c.contact)+' &bull; Due '+c.date+ord(c.date)+' &bull; '+payBadge(c)+'</div>'
+      +(many?'<div class="om" style="color:var(--rd);font-weight:600">'+x.months.length+' months owing, from '+MN[oy.m]+' '+oy.y+'</div>':'')
+      +'</div>'
+      +'<div class="oact"><div class="oa">'+gbp(x.total)+'</div>'
+      +'<button class="btn grn sm" onclick="event.stopPropagation();setSt('+c.id+','+oldest.g+',\'paid\')">Pay '+MN[oy.m]+'</button></div></div>';
   }).join('');
   // Revenue chart - last 6 months
   var chartCols=[]; for(var ci=CG-5;ci<=CG;ci++) chartCols.push(ci);
@@ -956,44 +1006,71 @@ function doRollover(nextG, nextLabel){
 
 // ── OVERDUE ──
 function vOverdue(){
-  var od=sortC(clients.filter(isOverdueToday));
-  var total=od.reduce(function(s,c){return s+parseFloat(c.mmf||0);},0);
+  // Track every outstanding month, not just the current one. Build a flat list
+  // of {client, month, amount} so a client owing 3 months appears with all 3.
+  var od=[];
+  sortC(clients).forEach(function(c){
+    var months=outstandingMonths(c);
+    if(months.length) od.push({c:c, months:months, total:outstandingTotal(c)});
+  });
+  var total=od.reduce(function(s,x){return s+x.total;},0);
+  var monthCount=od.reduce(function(s,x){return s+x.months.length;},0);
+  var owingIds={};
+  od.forEach(function(x){ owingIds[x.c.id]=true; });
   var upcoming=sortC(clients.filter(function(c){
     if(!c.active||!isDueThisMonth(c)) return false;
+    if(owingIds[c.id]) return false; // already listed above as outstanding
     var v=c.payments[String(CG)];
     if(v===true||v==='inactive') return false;
     return TD<(c.date||1);
   }));
-  var rows=od.map(function(c){
-    return '<div class="oc" style="cursor:pointer" onclick="openC('+c.id+')">'
+  var rows=od.map(function(x){
+    var c=x.c;
+    // One line per outstanding month, each independently payable/skippable.
+    var mrows=x.months.map(function(o){
+      var ym=ymOf(o.g);
+      var isCur=(o.g===CG);
+      return '<div class="omrow">'
+        +'<div class="omlbl">'+MN[ym.m]+' '+ym.y+(isCur?' <span style="color:var(--am)">(current)</span>':'')+'</div>'
+        +'<div class="omamt">'+gbp(o.amt)+'</div>'
+        +'<button class="btn grn sm" onclick="event.stopPropagation();setSt('+c.id+','+o.g+',\'paid\')">Paid</button>'
+        +'<button class="btn sm" onclick="event.stopPropagation();setSt('+c.id+','+o.g+',\'inactive\')">Skip</button>'
+        +'</div>';
+    }).join('');
+    var many=x.months.length>1;
+    return '<div class="oc" style="cursor:pointer;flex-direction:column;align-items:stretch" onclick="openC('+c.id+')">'
+      +'<div style="display:flex;align-items:flex-start;gap:8px;width:100%">'
       +'<div style="flex:1"><div class="on2">'+esc(c.name)+'</div>'
       +'<div class="om">'+esc(c.contact)+' &bull; Due '+c.date+ord(c.date)+' &bull; '+payBadge(c)+' &bull; '+freqBadge(c)+'</div>'
       +(c.notes?'<div class="om" style="font-style:italic">'+esc(c.notes)+'</div>':'')
       +'</div>'
-      +'<div class="oact"><div class="oa">'+gbp(c.mmf)+'</div>'
-      +'<button class="btn grn sm" onclick="event.stopPropagation();qPay('+c.id+')">Paid</button>'
-      +'<button class="btn sm" onclick="event.stopPropagation();setSt('+c.id+','+CG+',\'inactive\')">Skip</button>'
-      +'</div></div>';
+      +'<div style="text-align:right;flex-shrink:0">'
+      +'<div class="oa">'+gbp(x.total)+'</div>'
+      +(many?'<div style="font-size:10px;color:var(--rd);font-weight:600">'+x.months.length+' months owing</div>':'')
+      +'</div></div>'
+      +'<div class="omlist">'+mrows+'</div>'
+      +'</div>';
   }).join('');
   var upRows=upcoming.map(function(c){
     var days=c.date-TD;
     return '<div class="oc" style="opacity:.7">'
       +'<div style="flex:1"><div class="on2" style="color:var(--t2)">'+esc(c.name)+'</div>'
       +'<div class="om">Due '+c.date+ord(c.date)+' &mdash; '+days+' day'+(days===1?'':'s')+' away &bull; '+freqBadge(c)+'</div></div>'
-      +'<div class="oa" style="color:var(--am);font-size:14px">'+gbp(c.mmf)+'</div></div>';
+      +'<div class="oa" style="color:var(--am);font-size:14px">'+gbp(dispAmt(c,CG))+'</div></div>';
   }).join('');
   return '<div class="ph">'
-    +'<div><div class="pt">Overdue</div><div class="ps">'+TD+' '+MN[TM]+' '+TY+'</div></div>'
+    +'<div><div class="pt">Overdue</div><div class="ps">All outstanding months &bull; as at '+TD+' '+MN[TM]+' '+TY+'</div></div>'
     +'<div class="pa"><button class="btn sm" onclick="exportCSV()">CSV</button></div></div>'
     +'<div class="tbanner"><svg style="width:14px;height:14px;flex-shrink:0;margin-top:2px" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5.5"/><path d="M7 4v3.5L9 8"/></svg>'
-    +'<span>Only clients whose due date has passed today and are unpaid. Non-monthly clients only shown in their billing month.</span></div>'
+    +'<span>Every unpaid month, oldest first &mdash; not just this month. The current month appears once its due date has passed. Months never recorded are not counted as debt.</span></div>'
     +'<div class="mets">'
-    +'<div class="met"><div class="ml">Overdue now</div><div class="mv '+(od.length?'rd':'')+'">'+od.length+'</div></div>'
-    +'<div class="met"><div class="ml">Amount</div><div class="mv rd">'+gbp(total)+'</div></div>'
+    +'<div class="met"><div class="ml">Clients owing</div><div class="mv '+(od.length?'rd':'')+'">'+od.length+'</div>'
+    +'<div class="ms">'+monthCount+' month'+(monthCount===1?'':'s')+' total</div></div>'
+    +'<div class="met"><div class="ml">Total outstanding</div><div class="mv rd">'+gbp(total)+'</div></div>'
     +'<div class="met"><div class="ml">Upcoming</div><div class="mv am">'+upcoming.length+'</div></div>'
     +'</div>'
-    +'<div class="sh"><div class="st">Overdue &mdash; due date passed</div></div>'
-    +(rows||'<div class="empty">No overdue payments today! </div>')
+    +'<div class="sh"><div class="st">Outstanding</div></div>'
+    +(rows||'<div class="empty">Nothing outstanding &mdash; all caught up!</div>')
     +(upcoming.length?'<div class="sh" style="margin-top:1.25rem"><div class="st">Upcoming this month</div></div>'+upRows:'');
 }
 
