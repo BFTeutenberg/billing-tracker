@@ -1,9 +1,28 @@
 
+
+Skip to content
+Using Gmail with screen readers
+1 of 4,130
+(no subject)
+Inbox
+
+Barry Teutenberg <barry.teutenberg@gmail.com>
+Attachments
+11:06 (2 minutes ago)
+to me
+
+ One attachment
+  •  Scanned by Gmail
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Billing Tracker">
+<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Billing Tracker&quot;,&quot;short_name&quot;:&quot;Billing&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;background_color&quot;:&quot;%23f5f4f0&quot;,&quot;theme_color&quot;:&quot;%231a6b4a&quot;}">
 <title>Billing Tracker</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap');
@@ -19,7 +38,8 @@
   --r:8px;--rl:12px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-size:14px;}
+html{overflow-x:hidden;}
+body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-size:14px;overflow-x:hidden;max-width:100%;}
 /* Layout */
 .sb{width:220px;background:var(--sf);border-right:1px solid var(--bd);padding:1.5rem 0;position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;z-index:20;}
 .sb-logo{padding:0 1.25rem 1.25rem;border-bottom:1px solid var(--bd);margin-bottom:1rem;}
@@ -41,9 +61,13 @@ body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-siz
 .bni span{font-size:10px;font-weight:500;}
 .bni.on{color:var(--gn);}
 /* Main */
-.main{margin-left:220px;padding:2rem;min-height:100vh;}
+.main{margin-left:220px;padding:2rem;min-height:100vh;max-width:100%;overflow-x:hidden;}
 .monthly-sticky-top{position:sticky;top:0;background:var(--bg);z-index:15;padding-bottom:.75rem;margin-bottom:.5rem;}
-.mgwrap-scroll{max-height:calc(100vh - 340px);overflow-y:auto;}
+/* dvh (not vh) so the box accounts for the mobile address bar showing/hiding —
+   with vh the box overflows below the fold when the bar is visible. */
+.mgwrap-scroll{height:calc(100vh - 190px);height:calc(100dvh - 190px);min-height:260px;}
+/* Action buttons sit directly under the table box, freeing the header row. */
+.mgactions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:.6rem;}
 .ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px;}
 .pt{font-size:22px;font-weight:600;letter-spacing:-.03em;}
 .ps{font-size:13px;color:var(--t2);margin-top:2px;}
@@ -95,21 +119,28 @@ body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-siz
 .dot.pd{background:var(--gnbg);color:var(--gn);border:1px solid #b3ddc8;}
 .dot.ov{background:var(--rdbg);color:var(--rd);border:1px solid #f0b0b0;}
 .dot.im{background:var(--inbg);color:var(--in);border:1px solid #d8cedf;}
-.dot.ft,.dot.nd{background:var(--sf2);color:var(--bd2);border:1px dashed var(--bd);cursor:default;}
+.dot.ft{background:var(--sf2);color:var(--bd2);border:1px dashed var(--bd);cursor:default;}
+.dot.nd{background:var(--sf2);color:var(--t3);border:1px dashed var(--bd2);cursor:pointer;}
+.dot.nd:hover{background:#fff3e0;border-color:var(--am);color:var(--am);transform:scale(1.15);}
 .dot.up{background:var(--sf2);color:var(--t3);border:1px solid var(--bd2);cursor:pointer;}
 .dot.up:hover{background:#fff3e0;border-color:var(--am);color:var(--am);transform:scale(1.15);}
-.dot.ft:hover,.dot.nd:hover{transform:none;}
+.dot.ft:hover{transform:none;}
 .dot.mn{background:var(--ibg);color:var(--in);border:1px dashed #d8cedf;cursor:pointer;}
 /* Monthly grid - TABLE based for reliable rendering */
-.mgwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--bd);border-radius:var(--rl);}
+.mgwrap{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--bd);border-radius:var(--rl);width:100%;max-width:100%;}
 .mgtable{border-collapse:collapse;background:var(--sf);}
-.mgtable th{background:var(--sf2);padding:6px 3px;border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);font-size:9px;font-weight:700;text-transform:uppercase;color:var(--t3);text-align:center;white-space:nowrap;position:sticky;top:0;z-index:5;}
+.mgtable th{background:var(--sf2);padding:6px 3px;border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);font-size:9px;font-weight:700;text-transform:uppercase;color:var(--t3);text-align:center;white-space:nowrap;position:sticky;top:0;z-index:6;}
 .mgtable th.cur{background:#eef6f2;color:var(--tx);}
-.mgtable th.namecol{text-align:left;padding:6px 10px;min-width:150px;position:sticky;left:0;z-index:6;}
-.mgtable td{padding:4px 3px;border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);text-align:center;vertical-align:middle;min-width:44px;}
-.mgtable td.namecol{text-align:left;padding:7px 10px;position:sticky;left:0;background:var(--sf);z-index:4;}
+.mgtable th.namecol{text-align:left;padding:6px 8px;min-width:130px;max-width:130px;position:sticky;left:0;top:0;z-index:8;background:var(--sf2);}
+.mgtable td{padding:4px 2px;border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);text-align:center;vertical-align:middle;min-width:70px;}
+.mgtable .cname{font-size:11px;font-weight:500;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mgtable td.namecol{text-align:left;padding:6px 8px;position:sticky;left:0;background:var(--sf);z-index:5;min-width:130px;max-width:130px;overflow:hidden;box-shadow:2px 0 4px rgba(0,0,0,.06);}
 .mgtable tr:last-child td{border-bottom:none;}
-.mgtable tfoot td{border-top:2px solid var(--bd2);}
+/* Totals rows pinned to bottom of the scroll box. Two rows: Invoiced (last, 0px) then Paid sits directly above it, so Paid is offset by the Invoiced row height. */
+.mgtable tfoot td{border-top:2px solid var(--bd2);position:sticky;z-index:6;}
+.mgtable tfoot tr:nth-last-child(2) td{bottom:var(--footh,28px);}
+.mgtable tfoot tr:last-child td{bottom:0;}
+.mgtable tfoot td.namecol{z-index:7;}
 /* Detail */
 .dgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;}
 .di label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--t3);font-weight:600;display:block;margin-bottom:3px;}
@@ -131,8 +162,20 @@ body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-siz
 .oa{font-size:17px;font-weight:700;font-family:Space Grotesk,sans-serif;color:var(--rd);}
 .oact{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center;flex-shrink:0;}
 /* Dot dropdown */
+/* A .dd lives inside a <td>. The sticky header (z6), name column (z5) and
+   totals rows (z6) paint above that cell, so an open menu looked transparent /
+   overlapped. Raise the cell itself (and its .mdm) above all sticky chrome
+   while its menu is open, so the dropdown escapes cleanly. */
 .mdm{position:relative;display:inline-block;}
-.dd{position:absolute;top:110%;right:0;background:var(--sf);border:1px solid var(--bd2);border-radius:var(--r);padding:4px;z-index:50;min-width:160px;box-shadow:0 4px 16px rgba(0,0,0,.12);display:none;}
+.mdm:has(.dd.open){z-index:100;}
+td:has(.dd.open){position:relative;z-index:100;}
+.dd{z-index:101;}
+.dd.up{top:auto;bottom:110%;}
+/* .dd is min-width:160px but a month column is only ~70px, so the menu
+   overhangs to the LEFT and gets clipped by the scroll box / sticky name
+   column on left-hand columns. .dd.rt flips the overhang to the right. */
+.dd.rt{right:auto;left:0;}
+.dd{position:absolute;top:110%;right:0;background:#fff;border:1px solid var(--bd2);border-radius:var(--r);padding:4px;z-index:101;min-width:172px;max-width:calc(100vw - 24px);box-shadow:0 6px 20px rgba(0,0,0,.18);display:none;isolation:isolate;}
 .dd.open{display:block;}
 .ddi{display:flex;align-items:center;gap:7px;padding:8px 10px;font-size:13px;cursor:pointer;border-radius:4px;white-space:nowrap;color:var(--tx);touch-action:manipulation;}
 .ddi:hover,.ddi:active{background:var(--sf2);}
@@ -174,7 +217,7 @@ body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-siz
 .alog-add input{flex:1;padding:8px 10px;border:1px solid var(--bd2);border-radius:var(--r);font-size:13px;font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);outline:none;}
 .alog-add input:focus{border-color:#4caf82;}
 /* Inline amount edit in monthly */
-.amt-edit{font-size:11px;width:70px;padding:4px 6px;border:1px solid var(--gnbg);border-radius:4px;font-family:Space Grotesk,sans-serif;text-align:center;background:var(--sf);color:var(--tx);outline:none;-webkit-appearance:none;}
+.amt-edit{font-size:11px;width:70px;min-width:0;padding:4px 6px;border:1px solid var(--gnbg);border-radius:4px;font-family:Space Grotesk,sans-serif;text-align:center;background:var(--sf);color:var(--tx);outline:none;-webkit-appearance:none;}
 .amt-edit:focus{border-color:var(--gn);}
 /* Chart */
 .chart-wrap{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);padding:1.1rem;margin-bottom:1.5rem;}
@@ -188,12 +231,38 @@ body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-siz
 .set-item-label{font-size:13px;font-weight:500;}
 /* Responsive */
 @media(max-width:700px){
-  .sb{display:none;} .bnav{display:block;} .main{margin-left:0;padding:1rem;padding-bottom:80px;}
+  .sb{display:none;} .bnav{display:block;} .main{margin-left:0;padding:.6rem;padding-bottom:120px;padding-top:env(safe-area-inset-top,.6rem);}
   .f3{grid-template-columns:1fr 1fr;} .dgrid{grid-template-columns:1fr 1fr;}
-  .hr{grid-template-columns:60px 1fr auto;} .ha{display:none;}
+  /* Amount was hidden on mobile for space. Restore it — tighten the month
+     column and shrink the status text so all four columns fit. */
+  .hr{grid-template-columns:52px minmax(0,1fr) auto auto;gap:6px;}
+  .hm{font-size:11px;}
+  .hs{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .ha{font-size:12px;}
   .mets{grid-template-columns:1fr 1fr;} .mv{font-size:20px;}
   .oc{flex-wrap:wrap;} .toast{bottom:72px;}
   .pt{font-size:18px;}
+  /* Phone: compact table box that fits a vertical screen without page scrolling.
+     Header/legend/buttons stay above; the box itself scrolls in both directions. */
+  /* Reserve only what is actually occupied: bottom nav (~64) + action bar
+     (~44) + padding (~22). A full +40% was not possible — the box would
+     have run under the nav bar — so the header row was freed instead. */
+  .mgwrap-scroll{height:calc(100vh - var(--navh,47px) - 83px);height:calc(100dvh - var(--navh,47px) - 83px);min-height:300px;}
+  .mgactions{position:fixed;left:0;right:0;bottom:var(--navh,47px);background:var(--bg);
+    padding:6px 10px;border-top:1px solid var(--bd);z-index:19;gap:6px;
+    justify-content:space-between;}
+  .mgactions .btn{flex:1;font-size:11px;padding:7px 4px;white-space:nowrap;}
+  .mgtable th.namecol,.mgtable td.namecol{min-width:104px;max-width:104px;}
+  .mgtable td{min-width:70px;}
+  .mgtable th{font-size:8px;padding:5px 2px;}
+  /* Legend is bulky on a phone and pushes the table off-screen — hide it. */
+  .monthly-sticky-top .legend{display:none;}
+  .monthly-sticky-top{padding-bottom:.3rem;margin-bottom:.3rem;}
+  /* Title/subtitle are dead weight on a phone — the nav already says where
+     you are. Drop them and hand the space to the table. */
+  .monthly-sticky-top .ph{margin-bottom:.4rem!important;}
+  .monthly-sticky-top .pt,.monthly-sticky-top .ps{display:none;}
+  .monthly-sticky-top .ph{padding-bottom:0;border-bottom:none;}
 }
 @media(min-width:701px){
   .mbg{align-items:center;padding:1rem;} .modal{border-radius:var(--rl);max-width:520px;}
@@ -434,6 +503,11 @@ function dotState(c,g){
   // If a real entry exists for a future month (e.g. via rollover), treat it as
   // editable 'up' rather than locking it as future — only TRUE future with no
   // entry at all stays locked
+  // Inactive clients: no stored value means simply "not billed" — show an
+  // editable 'im' dot rather than a locked future cell, so it can still be
+  // corrected. Rollover deliberately skips inactive clients, so they never
+  // get an auto-created entry here.
+  if(!c.active) return 'im';
   if(g>CG){
     if(v!==undefined) return 'up'; // rolled-over entry exists — editable
     return 'ft'; // genuinely future, no entry yet — locked
@@ -483,7 +557,8 @@ function render(){
     try{ main.insertAdjacentHTML('beforeend',vModal()); }catch(e){}
   }
   bindModal();
-  if(VIEW==='monthly') setTimeout(scrollToToday,80);
+  syncNavHeight();
+  if(VIEW==='monthly'){ syncFootHeight(); setTimeout(scrollToToday,80); }
 }
 
 // ── DASHBOARD ──
@@ -681,7 +756,7 @@ function vMonthly(){
     var c=visible[ri];
     tbody+='<tr>'
       +'<td class="namecol" style="cursor:pointer" onclick="openC('+c.id+')">'  
-      +'<div style="font-size:12px;font-weight:500;color:var(--tx)">'+esc(c.name)+'</div>'
+      +'<div class="cname">'+esc(c.name)+'</div>'
       +'<div style="font-size:10px;color:var(--t3)">'+esc(c.contact)+'</div>'
       +'<div style="font-size:10px;margin-top:2px">'+payBadge(c)+' '+invBadge(c)+'</div>'
       +'<div style="font-size:10px;color:var(--t3);margin-top:1px">'+freqBadge(c)+' &bull; Due '+c.date+ord(c.date)+'</div>'
@@ -691,10 +766,10 @@ function vMonthly(){
       var st=dotState(c,cg);
       var lbl=DLBL[st]||'';
       var isFut=(st==='ft');  // true future months are always locked
-      var isLocked=isFut||(st==='pd')||(st==='nd');  // 'nd'=auto not-due locked; 'mn'=manual not-due is editable
+      var isLocked=isFut;  // ONLY future months with no data are locked. Everything else is editable.
       var mid='dd'+c.id+'x'+cg;
       var clickStr=isLocked?'':' onclick="openDot(event,\''+mid+'\')"';
-      var lockTitle=st==='pd'?'Paid — edit via client record':DTIT[st];
+      var lockTitle=DTIT[st]||'Cannot edit';
       var dotEl='<span class="dot '+st+'" title="'+(isLocked?lockTitle:'Click to change')+'"'+clickStr+'>'+lbl+'</span>';
       var amtTxt='';
       if(st!=='ft'&&st!=='nd'){  // only show amount for active billing months
@@ -736,7 +811,7 @@ function vMonthly(){
       var ic=inactiveClients[rii];
       tbody+='<tr style="opacity:.55">';
       tbody+='<td class="namecol" style="cursor:pointer" onclick="openC('+ic.id+')">';
-      tbody+='<div style="font-size:12px;font-weight:500">'+esc(ic.name)+'</div>';
+      tbody+='<div class="cname">'+esc(ic.name)+'</div>';
       tbody+='<div style="font-size:10px;color:var(--t3)">'+esc(ic.contact)+'</div>';
       tbody+='<div style="font-size:10px;margin-top:2px">'+payBadge(ic)+' '+invBadge(ic)+'</div>';
       tbody+='<div style="font-size:10px;color:var(--t3);margin-top:1px">'+freqBadge(ic)+' &bull; Due '+ic.date+ord(ic.date)+'</div>';
@@ -745,7 +820,7 @@ function vMonthly(){
         var cgx=cols[cii];
         var stx=dotState(ic,cgx);
         var lblx=DLBL[stx]||'';
-        var isLockedx=(stx==='ft')||(stx==='pd')||(stx==='nd');  // mn (manual not-due) remains editable
+        var isLockedx=(stx==='ft');  // ONLY future months with no data are locked
         var midx='dd'+ic.id+'x'+cgx;
         var clkx=isLockedx?'':' onclick="openDot(event,\''+midx+'\')"';
         var dotx='<span class="dot '+stx+'" title="'+DTIT[stx]+'"'+clkx+'>'+lblx+'</span>';
@@ -803,11 +878,7 @@ function vMonthly(){
   return '<div class="monthly-sticky-top">'
     +'<div class="ph" style="margin-bottom:.75rem">'
     +'<div><div class="pt">Monthly view</div><div class="ps">Current month left &bull; scroll right for history to Apr 2025</div></div>'
-    +'<div class="pa">'
-    +'<button class="btn sm '+(SHOWINACT_M?'pri':'')+' " onclick="SHOWINACT_M=!SHOWINACT_M;render()">'+(SHOWINACT_M?'Hide':'Show')+' inactive</button>'
-    +'<button class="btn grn sm" onclick="rolloverMonth()">&#43; Rollover to '+nextLabel+'</button>'
-    +'<button class="btn sm" onclick="exportCSV()">CSV</button>'
-    +'</div></div>'
+    +'</div>'
     +'<div class="legend" style="margin-bottom:0">'
     +'<div class="li"><span class="dot pd" style="width:16px;height:16px;font-size:9px">&#10003;</span> Paid</div>'
     +'<div class="li"><span class="dot ov" style="width:16px;height:16px;font-size:9px">!</span> Overdue</div>'
@@ -819,6 +890,11 @@ function vMonthly(){
     +'</div></div>'
     +'<div class="mgwrap mgwrap-scroll" id="mgwrap">'
     +'<table class="mgtable" id="mgtable"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody><tfoot>'+tfoot+'</tfoot></table>'
+    +'</div>'
+    +'<div class="mgactions">'
+    +'<button class="btn sm '+(SHOWINACT_M?'pri':'')+'" onclick="SHOWINACT_M=!SHOWINACT_M;render()">'+(SHOWINACT_M?'Hide':'Show')+' inactive</button>'
+    +'<button class="btn grn sm" onclick="rolloverMonth()">&#43; Rollover to '+nextLabel+'</button>'
+    +'<button class="btn sm" onclick="exportCSV()">CSV</button>'
     +'</div>';
 }
 
@@ -1400,9 +1476,69 @@ function openDot(e,mid){
   e.preventDefault(); // prevent touch -> click double-fire
   closeDots();
   var m=document.getElementById(mid);
-  if(m) m.classList.add('open');
+  if(!m) return;
+  // The table now lives in a fixed-height scroll box, so a dropdown opening
+  // downward on a lower row gets clipped by the box edge (making the dot look
+  // dead). Flip it upward when there isn't room below.
+  m.classList.remove('up');
+  m.classList.add('open');
+  // Explicitly raise the containing cell above the sticky header/name column/
+  // totals rows. CSS :has() does this too, but not every engine honours it —
+  // without this the menu paints *under* the sticky chrome and looks transparent.
+  var cell=m.closest('td');
+  if(cell){ cell.style.position='relative'; cell.style.zIndex='100'; }
+  var box=document.getElementById('mgwrap');
+  if(box){
+    var dotR=m.parentElement.getBoundingClientRect();
+    var boxR=box.getBoundingClientRect();
+    var need=m.offsetHeight+8;
+    var below=boxR.bottom-dotR.bottom;
+    var above=dotR.top-boxR.top;
+    if(below<need && above>below) m.classList.add('up');
+
+    // Horizontal: the menu is wider than a column, so it overhangs. Default is
+    // right:0 (overhang leftwards). If that would collide with the left edge of
+    // the box — or slide under the sticky name column — flip it to open rightwards.
+    var menuW=m.offsetWidth||160;
+    var nameCol=box.querySelector('td.namecol,th.namecol');
+    var leftLimit=boxR.left+(nameCol?nameCol.offsetWidth:0);
+    var roomLeft=dotR.right-leftLimit;      // space if overhanging left
+    var roomRight=boxR.right-dotR.left;     // space if overhanging right
+    if(roomLeft<menuW && roomRight>roomLeft) m.classList.add('rt');
+  }
 }
-function closeDots(){ document.querySelectorAll('.dd').forEach(function(d){d.classList.remove('open');}); }
+function syncFootHeight(){
+  // The upper totals row must sit exactly on top of the lower one. Measure the
+  // lower row rather than assuming a height, which differs between phone/desktop.
+  var rows=document.querySelectorAll('.mgtable tfoot tr');
+  if(rows.length<2) return;
+  var h=rows[rows.length-1].offsetHeight;
+  if(h>0) document.documentElement.style.setProperty('--footh', h+'px');
+}
+
+function syncNavHeight(){
+  // The action bar sits directly on top of the bottom nav. Measure the nav
+  // rather than hardcoding a height, so they meet exactly on any device.
+  var nav=document.querySelector('.bnav');
+  if(!nav) return;
+  var h=nav.offsetHeight;
+  if(h>0) document.documentElement.style.setProperty('--navh', h+'px');
+}
+window.addEventListener('resize', syncNavHeight);
+window.addEventListener('orientationchange', function(){ setTimeout(syncNavHeight,150); });
+
+function closeDots(){
+  document.querySelectorAll('.dd').forEach(function(d){
+    d.classList.remove('open');
+    d.classList.remove('up');
+    d.classList.remove('rt');
+    var cell=d.closest('td');           // undo the raise, or every cell it was
+    if(cell){                            // opened on would stay stacked high
+      cell.style.zIndex='';
+      cell.style.position='';
+    }
+  });
+}
 
 function exportCSV(){
   var s=gm(TY,0), en=gm(TY+1,11), cols=[];
@@ -1632,3 +1768,5 @@ setInterval(function(){
 </script>
 </body>
 </html>
+billing-tracker-7.html
+Displaying billing-tracker-7.html.
