@@ -47,14 +47,17 @@ body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-siz
 .bni span{font-size:10px;font-weight:500;}
 .bni.on{color:var(--gn);}
 /* Main */
-.main{margin-left:220px;padding:2rem;min-height:100vh;max-width:100%;overflow-x:hidden;}
-.monthly-sticky-top{position:sticky;top:0;background:var(--bg);z-index:15;padding-bottom:.75rem;margin-bottom:.5rem;}
+.main{margin-left:220px;padding:1.1rem 1.5rem;min-height:100vh;max-width:100%;overflow-x:hidden;}
+.monthly-sticky-top{position:sticky;top:0;background:var(--bg);z-index:15;padding-bottom:.4rem;margin-bottom:.3rem;}
 /* dvh (not vh) so the box accounts for the mobile address bar showing/hiding —
    with vh the box overflows below the fold when the bar is visible. */
-.mgwrap-scroll{height:calc(100vh - 190px);height:calc(100dvh - 190px);min-height:260px;}
+.mgwrap-scroll{height:calc(100vh - 162px);height:calc(100dvh - 162px);min-height:260px;}
 /* Action buttons sit directly under the table box, freeing the header row. */
-.mgactions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:.6rem;}
+.mgactions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:.45rem;}
 .ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px;}
+.monthly-sticky-top .ph{margin-bottom:.35rem;}
+.monthly-sticky-top .pt{font-size:18px;}
+.monthly-sticky-top .ps{font-size:12px;}
 .pt{font-size:22px;font-weight:600;letter-spacing:-.03em;}
 .ps{font-size:13px;color:var(--t2);margin-top:2px;}
 .pa{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
@@ -89,6 +92,8 @@ body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-siz
 .cf{font-size:14px;font-weight:600;font-family:Space Grotesk,sans-serif;text-align:right;}
 /* Badges */
 .bdg{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap;}
+/* Compact badges in the monthly grid so client rows are shorter. */
+.mgtable .bdg{font-size:9px;padding:1px 5px;}
 .bgc{background:var(--gnbg);color:var(--gn);}
 .bbt{background:var(--ambg);color:var(--am);}
 .bcc{background:var(--blbg);color:var(--bl);}
@@ -118,12 +123,17 @@ body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-siz
 .mgtable th{background:var(--sf2);padding:6px 3px;border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);font-size:9px;font-weight:700;text-transform:uppercase;color:var(--t3);text-align:center;white-space:nowrap;position:sticky;top:0;z-index:6;}
 .mgtable th.cur{background:#eef6f2;color:var(--tx);}
 .mgtable th.namecol{text-align:left;padding:6px 8px;min-width:130px;max-width:130px;position:sticky;left:0;top:0;z-index:8;background:var(--sf2);}
-.mgtable td{padding:4px 2px;border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);text-align:center;vertical-align:middle;min-width:70px;}
+.mgtable td{padding:3px 2px;border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);text-align:center;vertical-align:middle;min-width:70px;}
 .mgtable .cname{font-size:11px;font-weight:500;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.mgtable td.namecol{text-align:left;padding:6px 8px;position:sticky;left:0;background:var(--sf);z-index:5;min-width:130px;max-width:130px;overflow:hidden;box-shadow:2px 0 4px rgba(0,0,0,.06);}
+.mgtable td.namecol{text-align:left;padding:4px 8px;position:sticky;left:0;background:var(--sf);z-index:5;min-width:130px;max-width:130px;overflow:hidden;box-shadow:2px 0 4px rgba(0,0,0,.06);line-height:1.25;}
 .mgtable tr:last-child td{border-bottom:none;}
 /* Totals rows pinned to bottom of the scroll box. Two rows: Invoiced (last, 0px) then Paid sits directly above it, so Paid is offset by the Invoiced row height. */
-.mgtable tfoot td{border-top:2px solid var(--bd2);position:sticky;z-index:6;}
+.mgtable tfoot td{border-top:2px solid var(--bd2);position:sticky;z-index:6;background:#f0efe9;}
+/* Paid row (upper) and Invoiced row (lower) get distinct opaque fills. */
+.mgtable tfoot tr:nth-last-child(2) td{background:#eceae2;}
+.mgtable tfoot tr:last-child td{background:#f4faf6;}
+.mgtable tfoot td.namecol{background:#e6e4db;}
+.mgtable tfoot tr:last-child td.namecol{background:#eaf5ee;}
 .mgtable tfoot tr:nth-last-child(2) td{bottom:var(--footh,28px);}
 .mgtable tfoot tr:last-child td{bottom:0;}
 .mgtable tfoot td.namecol{z-index:7;}
@@ -197,6 +207,10 @@ td:has(.dd.open){position:relative;z-index:100;}
 .bb:hover{color:var(--tx);}
 .empty{text-align:center;padding:2.5rem 1rem;color:var(--t3);font-size:13px;}
 .legend{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:1rem;font-size:12px;color:var(--t2);}
+/* Inside the monthly sticky header the legend is a full extra row. Compact
+   it so it costs less vertical space without losing the key. */
+.monthly-sticky-top .legend{margin-bottom:0;gap:9px;font-size:11px;}
+.monthly-sticky-top .legend .dot{width:13px!important;height:13px!important;font-size:8px!important;}
 .li{display:flex;align-items:center;gap:5px;}
 /* Activity log */
 .alog{display:flex;flex-direction:column;gap:0;}
@@ -1573,10 +1587,14 @@ function openDot(e,mid){
 function syncFootHeight(){
   // The upper totals row must sit exactly on top of the lower one. Measure the
   // lower row rather than assuming a height, which differs between phone/desktop.
-  var rows=document.querySelectorAll('.mgtable tfoot tr');
-  if(rows.length<2) return;
-  var h=rows[rows.length-1].offsetHeight;
-  if(h>0) document.documentElement.style.setProperty('--footh', h+'px');
+  // Deferred to after paint — measuring synchronously during render can read a
+  // stale/short height, which leaves the two rows overlapping.
+  requestAnimationFrame(function(){
+    var rows=document.querySelectorAll('.mgtable tfoot tr');
+    if(rows.length<2) return;
+    var h=rows[rows.length-1].getBoundingClientRect().height;
+    if(h>0) document.documentElement.style.setProperty('--footh', Math.ceil(h)+'px');
+  });
 }
 
 function syncNavHeight(){
