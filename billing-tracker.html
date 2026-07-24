@@ -274,15 +274,25 @@ td:has(.dd.open){position:relative;z-index:100;}
   .mgtable td{min-width:70px;}
   .mgtable th{font-size:8px;padding:5px 2px;}
   /* Legend is bulky on a phone and pushes the table off-screen — hide it. */
-  .monthly-sticky-top .legend{display:none;}
+  /* Legend kept on mobile — the dot symbols need a key — but as one compact
+     horizontally-scrollable strip so it costs ~18px, not a stacked block. */
+  .monthly-sticky-top .legend{display:flex;flex-wrap:nowrap;overflow-x:auto;
+    gap:10px;font-size:10px;margin:0;padding:2px 0 3px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .monthly-sticky-top .legend::-webkit-scrollbar{display:none;}
+  .monthly-sticky-top .legend .li{flex:0 0 auto;white-space:nowrap;}
+  .monthly-sticky-top .legend .dot{width:11px!important;height:11px!important;font-size:7px!important;}
+  /* The trailing 'Totals row' hint is not essential on a phone. */
+  .monthly-sticky-top .legend .li:last-child{display:none;}
   /* All children are hidden on mobile, so collapse the container entirely
      rather than leaving an empty padded box above the table. */
-  .monthly-sticky-top{padding:0;margin:0;}
+  .monthly-sticky-top{padding:0 0 2px;margin:0;}
   .monthly-sticky-top .ph{margin:0!important;padding:0;min-height:0;}
   /* Title/subtitle are dead weight on a phone — the nav already says where
      you are. Drop them and hand the space to the table. */
   .monthly-sticky-top .ph{margin-bottom:.4rem!important;}
-  .monthly-sticky-top .pt,.monthly-sticky-top .ps{display:none;}
+  .monthly-sticky-top .ps{display:none;}
+  .monthly-sticky-top .pt{font-size:13px;font-weight:600;margin:0;padding:1px 0 0;}
   .monthly-sticky-top .ph{padding-bottom:0;border-bottom:none;}
 }
 @media(min-width:701px){
@@ -1629,6 +1639,23 @@ function syncAvailHeight(){
     if(!vh) return;
 
     var boxTop=box.getBoundingClientRect().top;
+
+    // When embedded in an iframe, sizing the box to the CURRENT frame height
+    // creates a deadlock: the app shrinks to fit the frame, reports that small
+    // height, and the parent keeps the frame small — so it never grows.
+    // Instead, ask for the height the full table actually needs and let the
+    // parent clamp it to the browser window.
+    if(window.parent!==window){
+      var table=document.getElementById('mgtable');
+      if(table){
+        var needed=table.scrollHeight+4;
+        var prevW=document.documentElement.style.getPropertyValue('--availh');
+        if(prevW!==needed+'px'){
+          document.documentElement.style.setProperty('--availh', needed+'px');
+        }
+        return;
+      }
+    }
 
     // Find the highest fixed-position bar below the table; that is the real floor.
     var floor=vh;
