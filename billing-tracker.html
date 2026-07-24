@@ -1640,21 +1640,13 @@ function syncAvailHeight(){
 
     var boxTop=box.getBoundingClientRect().top;
 
-    // When embedded in an iframe, sizing the box to the CURRENT frame height
-    // creates a deadlock: the app shrinks to fit the frame, reports that small
-    // height, and the parent keeps the frame small — so it never grows.
-    // Instead, ask for the height the full table actually needs and let the
-    // parent clamp it to the browser window.
-    if(window.parent!==window){
-      var table=document.getElementById('mgtable');
-      if(table){
-        var needed=table.scrollHeight+4;
-        var prevW=document.documentElement.style.getPropertyValue('--availh');
-        if(prevW!==needed+'px'){
-          document.documentElement.style.setProperty('--availh', needed+'px');
-        }
-        return;
-      }
+    // When embedded, the frame's own height is not a reliable guide (it is
+    // whatever the parent last set). The parent tells us how much room the
+    // BROWSER WINDOW has via PARENT_AVAIL; use that as the viewport instead.
+    // Sizing to the table's own height would be self-defeating: the box would
+    // never be shorter than its content, so it could never scroll.
+    if(window.parent!==window && PARENT_AVAIL>0){
+      vh=PARENT_AVAIL;
     }
 
     // Find the highest fixed-position bar below the table; that is the real floor.
@@ -1694,6 +1686,19 @@ function syncAvailHeight(){
 // its true content height to the parent, which adjusts the iframe to match.
 // Harmless when not embedded (window.parent === window, so it no-ops).
 var LAST_SENT_H = 0;
+// How much vertical room the PARENT page can give us, sent down by the embed
+// snippet. 0 until the first message arrives (or if not embedded).
+var PARENT_AVAIL = 0;
+window.addEventListener('message', function(e){
+  var d=e.data;
+  if(!d || d.type!=='billing-tracker-avail') return;
+  var v=parseInt(d.avail,10);
+  if(!v || isNaN(v)) return;
+  if(v!==PARENT_AVAIL){
+    PARENT_AVAIL=v;
+    syncAvailHeight(); // re-measure with the corrected viewport
+  }
+});
 function reportHeight(){
   if(window.parent===window) return; // not in an iframe
   var h=Math.max(
