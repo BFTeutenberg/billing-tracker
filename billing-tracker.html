@@ -242,7 +242,7 @@ td:has(.dd.open){position:relative;z-index:100;}
 .set-item-label{font-size:13px;font-weight:500;}
 /* Responsive */
 @media(max-width:700px){
-  .sb{display:none;} .bnav{display:block;} .main{margin-left:0;padding:.6rem;padding-bottom:120px;padding-top:env(safe-area-inset-top,.6rem);}
+  .sb{display:none;} .bnav{display:block;} .main{margin-left:0;padding:.35rem .4rem;padding-bottom:118px;padding-top:env(safe-area-inset-top,.35rem);}
   .f3{grid-template-columns:1fr 1fr;} .dgrid{grid-template-columns:1fr 1fr;}
   /* Amount was hidden on mobile for space. Restore it — tighten the month
      column and shrink the status text so all four columns fit. */
@@ -266,12 +266,19 @@ td:has(.dd.open){position:relative;z-index:100;}
     padding:6px 10px;border-top:1px solid var(--bd);z-index:19;gap:6px;
     justify-content:space-between;}
   .mgactions .btn{flex:1;font-size:11px;padding:7px 4px;white-space:nowrap;}
-  .mgtable th.namecol,.mgtable td.namecol{min-width:104px;max-width:104px;}
+  .mgtable th.namecol,.mgtable td.namecol{min-width:118px;max-width:118px;}
+  /* Badge/frequency lines were wrapping onto 3 lines at 104px, inflating row
+     height badly. Keep each line to one row and clip instead of wrapping. */
+  .mgtable td.namecol > div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .mgtable .bdg{font-size:8px;padding:1px 4px;}
   .mgtable td{min-width:70px;}
   .mgtable th{font-size:8px;padding:5px 2px;}
   /* Legend is bulky on a phone and pushes the table off-screen — hide it. */
   .monthly-sticky-top .legend{display:none;}
-  .monthly-sticky-top{padding-bottom:.3rem;margin-bottom:.3rem;}
+  /* All children are hidden on mobile, so collapse the container entirely
+     rather than leaving an empty padded box above the table. */
+  .monthly-sticky-top{padding:0;margin:0;}
+  .monthly-sticky-top .ph{margin:0!important;padding:0;min-height:0;}
   /* Title/subtitle are dead weight on a phone — the nav already says where
      you are. Drop them and hand the space to the table. */
   .monthly-sticky-top .ph{margin-bottom:.4rem!important;}
@@ -605,6 +612,8 @@ function render(){
   bindModal();
   syncNavHeight();
   if(VIEW==='monthly'){ syncAvailHeight(); syncFootHeight(); setTimeout(scrollToToday,80); }
+  // Content height changes with the view, so tell the parent frame each time.
+  setTimeout(reportHeight,60);
 }
 
 // ── DASHBOARD ──
@@ -1603,39 +1612,90 @@ function syncFootHeight(){
 }
 
 function syncAvailHeight(){
-  // Work out how much vertical space the table box may occupy, by measuring the
-  // real viewport and subtracting the chrome above and below it.
+  // Size the table box to the space genuinely available below it.
   //
-  // 100vh cannot be trusted here: the app is embedded in an iframe on the
-  // WordPress page, where vh units resolve against the PARENT window rather
-  // than the frame. That mismatch is what produced the large blank areas above
-  // and below the table.
+  // Two traps this avoids:
+  //  1. vh units are wrong in an iframe (they resolve against the parent window).
+  //  2. Naively summing the action bar + nav + page padding double-counts, because
+  //     on mobile the action bar is position:fixed INSIDE .main's bottom padding.
+  //
+  // So instead of adding up heights, measure the topmost fixed element's screen
+  // position and use that as the floor. Each region is then counted exactly once.
   requestAnimationFrame(function(){
     var box=document.getElementById('mgwrap');
     if(!box) return;
 
-    // Actual usable height of this document/frame.
-    var vh=window.innerHeight||document.documentElement.clientHeight;
+    var vh=window.innerHeight||document.documentElement.clientHeight||0;
+    if(!vh) return;
 
-    // Everything above the box within the page flow.
-    var top=box.getBoundingClientRect().top;
+    var boxTop=box.getBoundingClientRect().top;
 
-    // Everything below it: action bar, bottom nav, and page padding.
-    var below=0;
-    var acts=document.querySelector('.mgactions');
-    if(acts) below+=acts.offsetHeight;
-    var nav=document.querySelector('.bnav');
-    if(nav && getComputedStyle(nav).display!=='none') below+=nav.offsetHeight;
-    var main=document.getElementById('main');
-    if(main) below+=parseFloat(getComputedStyle(main).paddingBottom)||0;
-    below+=14; // breathing room
+    // Find the highest fixed-position bar below the table; that is the real floor.
+    var floor=vh;
+    ['.mgactions','.bnav'].forEach(function(sel){
+      var el=document.querySelector(sel);
+      if(!el) return;
+      var cs=getComputedStyle(el);
+      if(cs.display==='none'||cs.position!=='fixed') return;
+      var t=el.getBoundingClientRect().top;
+      if(t>boxTop && t<floor) floor=t;   // only bars actually below the table
+    });
 
-    var avail=Math.floor(vh-top-below);
-    if(avail<200) avail=200; // never collapse to nothing
-    document.documentElement.style.setProperty('--availh', avail+'px');
+    // If nothing is fixed (desktop), the bars sit in normal flow, so subtract
+    // their heights plus the page's bottom padding instead.
+    if(floor===vh){
+      var acts=document.querySelector('.mgactions');
+      if(acts && getComputedStyle(acts).position!=='fixed') floor-=acts.offsetHeight;
+      var main=document.getElementById('main');
+      if(main) floor-=parseFloat(getComputedStyle(main).paddingBottom)||0;
+    }
+
+    var avail=Math.floor(floor-boxTop-10); // 10px breathing room
+    if(avail<180) avail=180;
+    // Only write when it actually changes. The ResizeObserver watches the
+    // document, and this variable affects layout — writing unconditionally
+    // would let it retrigger itself in a loop.
+    var prev=document.documentElement.style.getPropertyValue('--availh');
+    if(prev!==avail+'px'){
+      document.documentElement.style.setProperty('--availh', avail+'px');
+    }
   });
 }
+
+// ── REPORT HEIGHT TO PARENT PAGE ────────────────────────────────────────────
+// When embedded in an iframe the app cannot resize its own frame, so it posts
+// its true content height to the parent, which adjusts the iframe to match.
+// Harmless when not embedded (window.parent === window, so it no-ops).
+var LAST_SENT_H = 0;
+function reportHeight(){
+  if(window.parent===window) return; // not in an iframe
+  var h=Math.max(
+    document.body.scrollHeight,
+    document.documentElement.scrollHeight,
+    document.body.offsetHeight
+  );
+  // Only send on a meaningful change, to avoid a resize feedback loop with the
+  // parent (its resize changes our viewport, which would re-trigger this).
+  if(Math.abs(h-LAST_SENT_H)<8) return;
+  LAST_SENT_H=h;
+  try{
+    window.parent.postMessage({type:'billing-tracker-height', height:h}, '*');
+  }catch(e){}
+}
+window.addEventListener('load', reportHeight);
+window.addEventListener('resize', reportHeight);
+
 window.addEventListener('resize', syncAvailHeight);
+// The WordPress page can resize the iframe after load (and mobile browsers change
+// the viewport as the address bar hides). A one-off measurement would miss both,
+// so re-measure whenever the document's own size changes.
+if(typeof ResizeObserver!=='undefined'){
+  try{
+    new ResizeObserver(function(){ syncAvailHeight(); })
+      .observe(document.documentElement);
+  }catch(e){}
+}
+window.addEventListener('orientationchange', function(){ setTimeout(syncAvailHeight,200); });
 
 function syncNavHeight(){
   // The action bar sits directly on top of the bottom nav. Measure the nav
