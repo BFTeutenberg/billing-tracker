@@ -276,17 +276,11 @@ td:has(.dd.open){position:relative;z-index:100;}
   /* Legend is bulky on a phone and pushes the table off-screen — hide it. */
   /* Legend kept on mobile — the dot symbols need a key — but as one compact
      horizontally-scrollable strip so it costs ~18px, not a stacked block. */
-  .monthly-sticky-top .legend{display:flex;flex-wrap:nowrap;overflow-x:auto;
-    gap:10px;font-size:10px;margin:0;padding:2px 0 3px;
-    -webkit-overflow-scrolling:touch;scrollbar-width:none;}
-  .monthly-sticky-top .legend::-webkit-scrollbar{display:none;}
-  .monthly-sticky-top .legend .li{flex:0 0 auto;white-space:nowrap;}
-  .monthly-sticky-top .legend .dot{width:11px!important;height:11px!important;font-size:7px!important;}
-  /* The trailing 'Totals row' hint is not essential on a phone. */
-  .monthly-sticky-top .legend .li:last-child{display:none;}
+  /* Legend omitted on mobile — the space is worth more than the key. */
+  .monthly-sticky-top .legend{display:none;}
   /* All children are hidden on mobile, so collapse the container entirely
      rather than leaving an empty padded box above the table. */
-  .monthly-sticky-top{padding:0 0 2px;margin:0;}
+  .monthly-sticky-top{padding:0;margin:0;}
   .monthly-sticky-top .ph{margin:0!important;padding:0;min-height:0;}
   /* Title/subtitle are dead weight on a phone — the nav already says where
      you are. Drop them and hand the space to the table. */
@@ -1710,8 +1704,18 @@ function reportHeight(){
   // parent (its resize changes our viewport, which would re-trigger this).
   if(Math.abs(h-LAST_SENT_H)<8) return;
   LAST_SENT_H=h;
+  // Tell the parent which sizing behaviour this view needs:
+  //  - monthly view scrolls INTERNALLY, so the frame should be capped to the
+  //    window (clamp:true)
+  //  - every other view is an ordinary long page and must be allowed to grow,
+  //    letting the WordPress page scroll normally (clamp:false). Clamping these
+  //    cuts off the bottom with no way to reach it.
   try{
-    window.parent.postMessage({type:'billing-tracker-height', height:h}, '*');
+    window.parent.postMessage({
+      type:'billing-tracker-height',
+      height:h,
+      clamp:(VIEW==='monthly')
+    }, '*');
   }catch(e){}
 }
 window.addEventListener('load', reportHeight);
