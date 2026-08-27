@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -813,7 +812,12 @@ function vMonthly(){
       var c=visible[ri];
       var st=dotState(c,g);
       var ma=dispAmt(c,g);
-      if(st!=='nd'&&st!=='ft'){ tot+=parseFloat(ma||0); if(st==='pd') paid+=parseFloat(ma||0); }
+      // 'im' = not billed, so there is no invoice and nothing outstanding.
+      // Counting it in tot showed a red "outstanding" figure for a month that
+      // was never invoiced. Kept consistent with the Invoiced row below.
+      if(st==='nd'||st==='ft'||st==='im') continue;
+      tot+=parseFloat(ma||0);
+      if(st==='pd') paid+=parseFloat(ma||0);
     }
     colTotals[g]=tot; colPaid[g]=paid;
   }
@@ -840,7 +844,9 @@ function vMonthly(){
       var lockTitle=DTIT[st]||'Cannot edit';
       var dotEl='<span class="dot '+st+'" title="'+(isLocked?lockTitle:'Click to change')+'"'+clickStr+'>'+lbl+'</span>';
       var amtTxt='';
-      if(st!=='ft'&&st!=='nd'){  // only show amount for active billing months
+      // 'im' = not billed: no invoice was raised, so showing a figure implies a
+      // charge that does not exist (and now counts toward no total).
+      if(st!=='ft'&&st!=='nd'&&st!=='im'){
         var cellAmt=dispAmt(c,cg);
         if(cellAmt>0){  // only show if amount > 0
           var amtColor=st==='pd'?'var(--gn)':st==='ov'?'var(--rd)':'var(--t3)';
@@ -864,7 +870,12 @@ function vMonthly(){
         menuEl+='<div style="display:flex;gap:4px;align-items:center">';
         menuEl+='<input class="amt-edit" style="flex:1;width:auto" type="text" inputmode="decimal" placeholder="'+c.mmf+'" id="ae_'+c.id+'_'+cg+'" value="'+dispAmt(c,cg)+'">';
         menuEl+='<button class="btn sm grn" style="padding:3px 8px;font-size:11px;flex-shrink:0" onclick="event.stopPropagation();event.preventDefault();saveMonthBoth('+c.id+','+cg+',\''+mid+'\')">Save</button>';
-        menuEl+='</div></div>';
+        menuEl+='</div>';
+        // Clear removes the entry entirely, rather than setting it to a status.
+        if(hasEntry(c,cg)||(c.monthAmounts&&c.monthAmounts[String(cg)]!==undefined)){
+          menuEl+='<button class="btn sm" style="width:100%;margin-top:6px;font-size:11px;padding:4px;color:var(--rd);border-color:#f0b0b0" onclick="event.stopPropagation();event.preventDefault();clearMonth('+c.id+','+cg+')">Clear entry</button>';
+        }
+        menuEl+='</div>';
         menuEl+='</div>';
       }
       tbody+='<td><div class="mdm">'+dotEl+menuEl+'</div>'+amtTxt+'</td>';
@@ -893,7 +904,7 @@ function vMonthly(){
         var clkx=isLockedx?'':' onclick="openDot(event,\''+midx+'\')"';
         var dotx='<span class="dot '+stx+'" title="'+DTIT[stx]+'"'+clkx+'>'+lblx+'</span>';
         var amtx='';
-        if(stx!=='ft'&&stx!=='nd'){var ca=dispAmt(ic,cgx);if(ca>0){var ac=stx==='pd'?'var(--gn)':stx==='ov'?'var(--rd)':'var(--t3)';amtx='<div style="font-size:9px;font-weight:600;color:'+ac+';margin-top:2px">'+gbp(ca)+'</div>';}}
+        if(stx!=='ft'&&stx!=='nd'&&stx!=='im'){var ca=dispAmt(ic,cgx);if(ca>0){var ac=stx==='pd'?'var(--gn)':stx==='ov'?'var(--rd)':'var(--t3)';amtx='<div style="font-size:9px;font-weight:600;color:'+ac+';margin-top:2px">'+gbp(ca)+'</div>';}}
         var menux='';
         if(!isLockedx){
           var saveBtn='<button class="btn sm grn" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();event.preventDefault();saveMonthBoth('+ic.id+','+cgx+',\''+midx+'\')">'+'Save</button>';
@@ -936,8 +947,13 @@ function vMonthly(){
     var isCur2=(cg2===CG);
     var invTot=0;
     allClients.forEach(function(c){
+      // Inactive clients are not invoiced. They were being counted here because
+      // dotState returns 'im' for them, which passed the filter — inflating the
+      // Invoiced total by their fee even though nothing is billed.
+      if(!c.active) return;
       var st2=dotState(c,cg2);
-      if(st2!=='nd'&&st2!=='ft') invTot+=dispAmt(c,cg2);
+      if(st2==='nd'||st2==='ft'||st2==='im') return; // not billed this month
+      invTot+=dispAmt(c,cg2);
     });
     tfoot+='<td style="padding:5px 3px;border-right:1px solid var(--bd);border-bottom:1px solid var(--bd);'+(isCur2?'background:#f0fbf5;':'')+'text-align:center">'      +'<div style="font-size:9px;font-weight:700;font-family:Space Grotesk,sans-serif;color:var(--bl);line-height:1.4">'+(invTot>0?gbp(invTot):'')+'</div>'      +'</td>';
   }
@@ -1252,12 +1268,55 @@ function dispAmt(c, g){
 }
 // setDotSt defined below (handles both dropdown and history edit modal)
 
+// Does this month have a real stored entry (as opposed to a computed state)?
+function hasEntry(c, g){
+  return c && c.payments && c.payments[String(g)]!==undefined;
+}
+
+// Inactive clients must not gain NEW payment flags. Existing entries stay
+// editable and deletable, so anything already recorded can still be corrected.
+function blockedAsInactive(c, g){
+  if(!c || c.active) return false;
+  if(hasEntry(c,g)) return false;      // already exists — editing is allowed
+  toast('Client is inactive — reactivate to add a new entry');
+  return true;
+}
+
+// Remove a month's entry completely: the status flag and any amount override.
+function clearMonth(cid, g){
+  var c=clients.find(function(x){return x.id===cid;});
+  if(!c) return;
+  var k=String(g);
+  var had=hasEntry(c,g)||(c.monthAmounts&&c.monthAmounts[k]!==undefined);
+  if(!had){ toast('Nothing to clear'); closeDots(); return; }
+  if(c.payments) delete c.payments[k];
+  if(c.monthAmounts) delete c.monthAmounts[k];
+  var ym=ymOf(g);
+  addLog(c,'Cleared entry for '+MN[ym.m]+' '+ym.y);
+  flushSave();
+  toast('Entry cleared'); closeDots(); render();
+}
+
+// Write straight through to localStorage and Supabase, bypassing the debounce.
+// Used by the edit paths so a change cannot be overwritten by a pending sync.
+function flushSave(){
+  try{ localStorage.setItem('bt_v4',JSON.stringify(clients)); }catch(e){}
+  if(SAVE_TIMER){ clearTimeout(SAVE_TIMER); SAVE_TIMER=null; }
+  SAVE_PENDING=true;
+  updateSyncBadge('saving');
+  sbSet('clients', clients, function(err){
+    SAVE_PENDING=false;
+    updateSyncBadge(err?'error':'ok');
+  });
+}
+
 function saveMonthBoth(cid, g, mid){
   // Save both status and amount in one go
   var dd = document.getElementById(mid);
   var inp = document.getElementById('ae_'+cid+'_'+g);
   var c = clients.find(function(x){ return x.id===cid; });
   if(!c) return;
+  if(blockedAsInactive(c,g)){ closeDots(); return; }
 
   // Work out which status to save
   var newSt = (dd && dd.dataset.pendingSt) || null;
@@ -1384,6 +1443,9 @@ function openHistEdit(cid, g){
     +'<div class="fr"><label>Amount &pound;</label>'
     +'<input type="text" inputmode="decimal" id="he-amt" value="'+amt+'" style="width:100%;padding:9px 10px;border:1px solid var(--bd2);border-radius:var(--r);font-size:14px;font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx)"></div>'
     +'<div class="fac">'
+    +(hasEntry(c,g)||(c.monthAmounts&&c.monthAmounts[String(g)]!==undefined)
+       ? '<button class="btn" style="color:var(--rd);border-color:#f0b0b0;margin-right:auto" onclick="clearHistEntry()">Delete entry</button>'
+       : '')
     +'<button class="btn" onclick="closeHistEdit()">Cancel</button>'
     +'<button class="btn pri" onclick="saveHistEdit()">Save changes</button>'
     +'</div></div></div>';
@@ -1407,11 +1469,19 @@ function closeHistEdit(){
   HIST_EDIT = null;
 }
 
+function clearHistEntry(){
+  if(!HIST_EDIT) return;
+  var cid=HIST_EDIT.cid, g=HIST_EDIT.g;
+  closeHistEdit();
+  clearMonth(cid,g);
+}
+
 function saveHistEdit(){
   if(!HIST_EDIT) return;
   var c = clients.find(function(x){return x.id===HIST_EDIT.cid;});
   if(!c) return;
   var g = HIST_EDIT.g;
+  if(blockedAsInactive(c,g)){ closeHistEdit(); return; }
   // Read status from global variable (more reliable than dataset on mobile)
   var newSt = HIST_PENDING_ST || '';
   // Read amount
@@ -1550,6 +1620,7 @@ function doDeleteClient(id){
 function setSt(cid,g,st){
   var c=clients.find(function(x){return x.id===cid;});
   if(!c) return;
+  if(blockedAsInactive(c,g)) return;
   var prev=c.payments[String(g)];
   if(st==='paid') c.payments[String(g)]=true;
   else if(st==='inactive') c.payments[String(g)]='inactive';
