@@ -23,8 +23,13 @@
   --r:8px;--rl:12px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-html{overflow-x:hidden;}
-body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-size:14px;overflow-x:hidden;max-width:100%;}
+/* The document itself must not scroll. Inside an iframe, position:fixed bars
+   anchor to the FRAME — so if the frame grows to full content height, the
+   bottom nav ends up far down the page and you have to scroll to reach it.
+   Instead the frame is capped to the window and .main scrolls internally,
+   which keeps the nav and action bar genuinely fixed on screen. */
+html{overflow:hidden;height:100%;}
+body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-size:14px;overflow:hidden;height:100%;max-width:100%;}
 /* Layout */
 .sb{width:220px;background:var(--sf);border-right:1px solid var(--bd);padding:1.5rem 0;position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;z-index:20;}
 .sb-logo{padding:0 1.25rem 1.25rem;border-bottom:1px solid var(--bd);margin-bottom:1rem;}
@@ -46,7 +51,7 @@ body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-siz
 .bni span{font-size:10px;font-weight:500;}
 .bni.on{color:var(--gn);}
 /* Main */
-.main{margin-left:220px;padding:1rem 1.5rem .75rem;max-width:100%;overflow-x:hidden;}
+.main{margin-left:220px;padding:1rem 1.5rem .75rem;max-width:100%;overflow-x:hidden;overflow-y:auto;height:100%;flex:1;-webkit-overflow-scrolling:touch;}
 .monthly-sticky-top{position:sticky;top:0;background:var(--bg);z-index:15;padding-bottom:.3rem;margin-bottom:.15rem;}
 /* dvh (not vh) so the box accounts for the mobile address bar showing/hiding —
    with vh the box overflows below the fold when the bar is visible. */
@@ -175,13 +180,14 @@ body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--tx);font-siz
 .mdm{position:relative;display:inline-block;}
 .mdm:has(.dd.open){z-index:100;}
 td:has(.dd.open){position:relative;z-index:100;}
-.dd{z-index:101;}
-.dd.up{top:auto;bottom:110%;}
 /* .dd is min-width:160px but a month column is only ~70px, so the menu
    overhangs to the LEFT and gets clipped by the scroll box / sticky name
    column on left-hand columns. .dd.rt flips the overhang to the right. */
-.dd.rt{right:auto;left:0;}
-.dd{position:absolute;top:110%;right:0;background:#fff;border:1px solid var(--bd2);border-radius:var(--r);padding:4px;z-index:101;min-width:172px;max-width:calc(100vw - 24px);box-shadow:0 6px 20px rgba(0,0,0,.18);display:none;isolation:isolate;}
+/* position:fixed, not absolute. The table lives in an overflow:auto box, so an
+   absolutely-positioned menu was CLIPPED at the box edge — which looked like
+   the menu was half-missing or see-through. Fixed elements are not clipped by
+   ancestor overflow. Coordinates are computed in openDot(). */
+.dd{position:fixed;left:0;top:0;background:#fff;border:1px solid var(--bd2);border-radius:var(--r);padding:5px;z-index:900;min-width:178px;box-shadow:0 8px 28px rgba(0,0,0,.22);display:none;}
 .dd.open{display:block;}
 .ddi{display:flex;align-items:center;gap:7px;padding:8px 10px;font-size:13px;cursor:pointer;border-radius:4px;white-space:nowrap;color:var(--tx);touch-action:manipulation;}
 .ddi:hover,.ddi:active{background:var(--sf2);}
@@ -294,7 +300,7 @@ td:has(.dd.open){position:relative;z-index:100;}
 </style>
 </head>
 <body>
-<div style="display:flex;">
+<div style="display:flex;height:100%;">
   <nav class="sb">
     <div class="sb-logo"><div class="sb-title">Billing Tracker</div><div class="sb-sub" id="sbsub">2026</div></div>
     <div class="nav-desk">
@@ -559,11 +565,14 @@ function dotState(c,g){
   // If a real entry exists for a future month (e.g. via rollover), treat it as
   // editable 'up' rather than locking it as future — only TRUE future with no
   // entry at all stays locked
-  // Inactive clients: no stored value means simply "not billed" — show an
-  // editable 'im' dot rather than a locked future cell, so it can still be
-  // corrected. Rollover deliberately skips inactive clients, so they never
-  // get an auto-created entry here.
-  if(!c.active) return 'im';
+  // Inactive clients. Previously this returned 'im' unconditionally, which drew
+  // an editable dot in EVERY month — indistinguishable from a real entry, and
+  // clicking one created a genuine flag. Now:
+  //   - no stored entry  -> 'ft'  (blank and locked; no flag can be created)
+  //   - stored entry     -> 'up'  (editable, so it can be corrected or cleared)
+  // Entries with an explicit status (paid/overdue/not billed/not due) are
+  // already handled by the checks above and keep their real state.
+  if(!c.active) return (v===undefined) ? 'ft' : 'up';
   if(g>CG){
     if(v!==undefined) return 'up'; // rolled-over entry exists — editable
     return 'ft'; // genuinely future, no entry yet — locked
@@ -1643,36 +1652,35 @@ function openDot(e,mid){
   closeDots();
   var m=document.getElementById(mid);
   if(!m) return;
-  // The table now lives in a fixed-height scroll box, so a dropdown opening
-  // downward on a lower row gets clipped by the box edge (making the dot look
-  // dead). Flip it upward when there isn't room below.
-  m.classList.remove('up');
-  m.classList.add('open');
-  // Explicitly raise the containing cell above the sticky header/name column/
-  // totals rows. CSS :has() does this too, but not every engine honours it —
-  // without this the menu paints *under* the sticky chrome and looks transparent.
-  var cell=m.closest('td');
-  if(cell){ cell.style.position='relative'; cell.style.zIndex='100'; }
-  var box=document.getElementById('mgwrap');
-  if(box){
-    var dotR=m.parentElement.getBoundingClientRect();
-    var boxR=box.getBoundingClientRect();
-    var need=m.offsetHeight+8;
-    var below=boxR.bottom-dotR.bottom;
-    var above=dotR.top-boxR.top;
-    if(below<need && above>below) m.classList.add('up');
 
-    // Horizontal: the menu is wider than a column, so it overhangs. Default is
-    // right:0 (overhang leftwards). If that would collide with the left edge of
-    // the box — or slide under the sticky name column — flip it to open rightwards.
-    var menuW=m.offsetWidth||160;
-    var nameCol=box.querySelector('td.namecol,th.namecol');
-    var leftLimit=boxR.left+(nameCol?nameCol.offsetWidth:0);
-    var roomLeft=dotR.right-leftLimit;      // space if overhanging left
-    var roomRight=boxR.right-dotR.left;     // space if overhanging right
-    if(roomLeft<menuW && roomRight>roomLeft) m.classList.add('rt');
+  m.classList.add('open');
+
+  // The menu is position:fixed, so place it in SCREEN coordinates next to the
+  // dot. Fixed positioning means it is never clipped by the table's overflow
+  // box, which is what previously cut menus in half near the edges.
+  var dot=m.parentElement;                    // .mdm wrapper around the dot
+  var d=dot.getBoundingClientRect();
+  var vw=window.innerWidth, vh=window.innerHeight;
+  var mw=m.offsetWidth, mh=m.offsetHeight;
+  var pad=8;
+
+  // Vertical: prefer below the dot, flip above if there is not room.
+  var top=d.bottom+4;
+  if(top+mh>vh-pad){
+    var above=d.top-mh-4;
+    top = (above>=pad) ? above : Math.max(pad, vh-mh-pad);
   }
+
+  // Horizontal: prefer aligned to the dot's right edge, then clamp on-screen.
+  var left=d.right-mw;
+  if(left<pad) left=d.left;          // try opening rightwards instead
+  if(left+mw>vw-pad) left=vw-mw-pad; // still overflowing: pull back
+  if(left<pad) left=pad;             // narrower screen than the menu
+
+  m.style.left=Math.round(left)+'px';
+  m.style.top=Math.round(top)+'px';
 }
+
 function syncFootHeight(){
   // The upper totals row must sit exactly on top of the lower one. Measure the
   // lower row rather than assuming a height, which differs between phone/desktop.
@@ -1766,7 +1774,11 @@ window.addEventListener('message', function(e){
 });
 function reportHeight(){
   if(window.parent===window) return; // not in an iframe
-  var h=Math.max(
+  // The document is locked to the viewport and scrolls internally, so
+  // scrollHeight always equals the CURRENT frame height. Reporting that would
+  // freeze the frame at whatever size it already is. Ask for the full room the
+  // parent says is available instead; the parent clamps it to the window.
+  var h = PARENT_AVAIL>0 ? PARENT_AVAIL : Math.max(
     document.body.scrollHeight,
     document.documentElement.scrollHeight,
     document.body.offsetHeight
@@ -1775,17 +1787,14 @@ function reportHeight(){
   // parent (its resize changes our viewport, which would re-trigger this).
   if(Math.abs(h-LAST_SENT_H)<8) return;
   LAST_SENT_H=h;
-  // Tell the parent which sizing behaviour this view needs:
-  //  - monthly view scrolls INTERNALLY, so the frame should be capped to the
-  //    window (clamp:true)
-  //  - every other view is an ordinary long page and must be allowed to grow,
-  //    letting the WordPress page scroll normally (clamp:false). Clamping these
-  //    cuts off the bottom with no way to reach it.
   try{
     window.parent.postMessage({
       type:'billing-tracker-height',
       height:h,
-      clamp:(VIEW==='monthly')
+      // Always clamp. The app scrolls internally in every view now, so the
+      // frame must stay within the window — otherwise the fixed bottom nav
+      // sits at the bottom of a tall frame and you must scroll to find it.
+      clamp:true
     }, '*');
   }catch(e){}
 }
@@ -1816,15 +1825,9 @@ window.addEventListener('resize', syncNavHeight);
 window.addEventListener('orientationchange', function(){ setTimeout(syncNavHeight,150); });
 
 function closeDots(){
-  document.querySelectorAll('.dd').forEach(function(d){
+  // The menu is position:fixed now, so there is no cell z-index to unwind.
+  document.querySelectorAll('.dd.open').forEach(function(d){
     d.classList.remove('open');
-    d.classList.remove('up');
-    d.classList.remove('rt');
-    var cell=d.closest('td');           // undo the raise, or every cell it was
-    if(cell){                            // opened on would stay stacked high
-      cell.style.zIndex='';
-      cell.style.position='';
-    }
   });
 }
 
